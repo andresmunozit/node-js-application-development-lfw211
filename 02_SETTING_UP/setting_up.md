@@ -17,9 +17,9 @@ version manager.
 
 ## Installing Node.js on macOS and Linux
 The recommended way to install Node.js on macOS and Linux is by using a Node version manager, in
-particular nvm
+particular `nvm`.
 
-The way to install nvm is via the install script available on GitHub: nvm-sh/nvm.
+The way to install nvm is via the install script available on GitHub: `nvm-sh/nvm`.
 ```sh
 # -o- option fetch a file from an URL and write the content to the standard output
 $ curl -o- htt‌ps://raw.githubusercontent.com/nvm-sh/nvm/v0.39.3/install.sh | bash

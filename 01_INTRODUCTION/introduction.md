@@ -10,7 +10,8 @@ The credentials are: LFtraining/Penguin2014
 [Class Forum](https://forum.linuxfoundation.org/categories/lfw211-class-forum)
 
 ## Course Formatting
-In order to make it easier to distinguish the various types of content in the course, we use the color coding and formats below:
+In order to make it easier to distinguish the various types of content in the course, we use the
+color coding and formats below:
 
 Dark blue: Text typed at the command line
 

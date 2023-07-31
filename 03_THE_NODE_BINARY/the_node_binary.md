@@ -87,7 +87,9 @@ $ node --print "1 + 1"
 2
 
 # The following will print the console.log output and undefined wich is the result of that execution
-node -p "console.log(1+1)"
+$ node -p "console.log(1+1)"
+2
+undefined
 
 # -e, --eval flag evaluates without printing the result of the expression
 $ node --eval "1 + 1"
@@ -113,6 +115,13 @@ $ node -p "fs.readdirSync('.').filter((f) => /.js$/.test(f))"
 ```sh
 # -r, --require flag can be used to preload a CommonJS module before anything else loads.
 $ cd 03_THE_NODE_BINARY/examples/require-flag 
+
+$ cat preload.js 
+console.log('preload.js: this is the preloaded')
+
+$ cat app.js 
+console.log('app.js: this is the main file')
+
 $ node -r ./preload.js app.js
 preload.js: this is the preloaded
 app.js: this is the main file
@@ -122,7 +131,7 @@ app.js: this is the main file
 This is useful when we want to configure the process in some way, like injecting environment
 variables, one example would be dotenv.
 
-Note that the`--require` flag can only preload a CommonJS module not an ESM modules. ESM modules
+Note that the `--require` flag can only preload a CommonJS module not an ESM modules. ESM modules
 have a vaguely related, experimental flag `--loader`.
 
 ## Stack Trace Limit

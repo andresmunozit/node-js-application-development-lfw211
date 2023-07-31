@@ -55,9 +55,52 @@ For more information about Chrome Devtools, see
 [Google Developer's Documentation](https://developer.chrome.com/docs/devtools/).
 
 ## Breaking on Error in Devtools
-The "Pause on exceptions" feature can be used to automatically set a breakpoint at the line where an
-error is thrown. Go to the "Sources" tab in Chrome Devtools, click the pause button in the top
-right.
+The "Pause on uncaught exceptions" feature can be used to automatically set a breakpoint at the line
+where an error is thrown. Go to the "Sources" tab in Chrome Devtools, ane enable the "Pause on
+uncaught exceptions" checkbox.
 
 Ensure the "Pause on caught exceptions" checkbox is unchecked and press the play button, the process
 should then pause on line 2 where the error is thrown.
+
+## Adding a Breakpooint in Devtools
+In order to add a breakpoint at any place in Devtools, click the line number in the column to the
+left of the source code. Then press play, the debugger should pause the execution at the selected
+line.
+
+## Adding a Breakpoint in Code
+The `debugger` statement can be used to explicitly pause on the line that the statement appears when
+debugging.
+
+```js
+// 04_DEBUGGING_AND_DIAGNOSTICS/examples/debugger-statement/app.js
+function f(n = 99) {
+    if (n ===0) throw Error()
+
+    // The debug process will be paused at the following line
+    debugger
+    f(n - 1)
+}
+
+f()
+
+```
+
+Now we'll be using the `--inspect` flag instead of the `--inspect-brk` flag, and the debugger should
+pause at the line where the debugger statement is located.
+
+When not debugging, these debugger statements are ignored, however due to noise and potential
+performance impact it is not good practice to leave debugger statements in code.
+
+## Knowledge Check
+1. What keyword can be used within the code of a program to cause the process to pause on a specific
+line when in debug mode?
+- A. break
+- B. pause
+- C. debugger [x]
+- D. debug
+
+2. In order to set a breakpoint on the first line of execution when entering debug mode, which flag
+should be used?
+- A. --inspect
+- B. --debug
+- C. --inspect-brk [x]

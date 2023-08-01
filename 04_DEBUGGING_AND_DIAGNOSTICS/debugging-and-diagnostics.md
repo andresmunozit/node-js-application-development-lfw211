@@ -62,7 +62,7 @@ uncaught exceptions" checkbox.
 Ensure the "Pause on caught exceptions" checkbox is unchecked and press the play button, the process
 should then pause on line 2 where the error is thrown.
 
-## Adding a Breakpooint in Devtools
+## Adding a Breakpoint in Devtools
 In order to add a breakpoint at any place in Devtools, click the line number in the column to the
 left of the source code. Then press play, the debugger should pause the execution at the selected
 line.
@@ -74,7 +74,7 @@ debugging.
 ```js
 // 04_DEBUGGING_AND_DIAGNOSTICS/examples/debugger-statement/app.js
 function f(n = 99) {
-    if (n ===0) throw Error()
+    if (n === 0) throw Error()
 
     // The debug process will be paused at the following line
     debugger

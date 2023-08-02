@@ -87,13 +87,10 @@ the object wich the function was assined to:
 const obj = {id: 999, fn: function() {console.log(this.id)}}
 const obj2 = {id: 2, fn: obj.fn}
 
-obj2.fn() // prints 2
 obj.fn() // prints 999
+obj2.fn() // prints 2
 
 ```
-
-Both `obj` and `obj2` reference the same function but on each invocation the `this` context changes
-to the object on which that function was called.
 
 Functions have a `call` method that can be used to set their `this` context:
 ```js
@@ -102,7 +99,7 @@ function fn() {console.log(this.id)}
 const obj = {id: 999}
 const obj2 = {id: 2}
 
-// In this case the fn function isn't assigned to any of the objects, this was set dynamically via
+// In this case the fn function isn't assigned to any of the objects, `this` was set dynamically via
 // the call function.
 fn.call(obj2) // prints 2
 fn.call(obj) // prints 999
@@ -140,8 +137,7 @@ offsetter(1) // prints 1000 (999 + 1)
 
 ```
 
-While normal functions have a `prototype` property (which will be discussed in detail shortly), fat
-arrow functions do not:
+While normal functions have a `prototype` property (discussed bellow), fat arrow functions do not:
 ```js
 function normalFunction() {}
 const fatArrowFunction = () => {}
@@ -171,8 +167,8 @@ const wolf = {
 }
 
 const dog = Object.create(wolf, {
-    // When using Object.create, each property of the object passed as the second argument, must
-    // be an object with the value propert.
+    // The first argument passed to `Object.create` is the desired prototype. The second argument is
+    // an optional Property Descriptor object `{property1: {value: 1}, property2: {value: 2}}...`.
     woof: { value: function() {console.log(this.name + ': woof')} }
 })
 
@@ -193,10 +189,8 @@ To describe the prototype chain:
 - the prototype of `dog` is `wolf`
 - the prototype of `wolf` is `Object.prototype`
 
-The first argument passed to `Object.create` is the desired prototype. The second argument is an
-optional **Property Descriptor** object `{property1: {value: 1}, property2: {value: 2}}...`.
-
-The `Object.getOwnPropertyDescriptor` can be used to get a property descriptor of an object:
+The `Object.getOwnPropertyDescriptor` can be used to get a **property descriptor** of an object, by
+specifying the object and the property name:
 ```sh
 $ node -p "Object.getOwnPropertyDescriptor(process, 'title')"
 { value: 'node', writable: true, enumerable: true, configurable: true }
@@ -208,5 +202,90 @@ $ node -p "Object.getOwnPropertyDescriptor(global, 'process')"
   enumerable: false,
   configurable: true
 }
+
+```
+
+To describe the value of a property, the descriptor can either use `value` for a normal value or
+`get` and `set` to create a property getter/setter. The other properties are associated meta-data
+for the property are:
+- The `writable` property determines whether the property can be reassigned
+- `enumerable` determines whether the property will be enumerated in property iterator
+abstractions like `Object.keys`
+- `configurable` sets wheter the property descriptor itself can be altered
+
+All of these meta-data keys default to false.
+
+In the case of the previous code examples, because `dog` and `rufus` property descriptor only sets
+`value`, the `writable`, `enumerable` and `configurable` properties are by default set to false.
+
+Property descriptors are not directly relevant to prototypal inheritance, but are part of the
+`Object.create` interface.
+
+> `Object.defineProperty()` in JavaScript allows for the precise control of an object's property.
+Unlike normal property addition, it permits customization of whether the property can be changed,
+enumerated, or deleted. By default, properties added this way are not writable, enumerable, or
+configurable, and the method doesn't invoke setters, even if the property already exists, due to its
+use of the [[DefineOwnProperty]] internal method instead of [[Set]].
+
+See examples at
+[mdn web docs](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/defineProperty#examples).
+
+#### Prototype Inheritance Chain
+Let's copy the code here again to analyze the prototype inheritance chain:
+```js
+const wolf = {
+    howl: function() {console.log(this.name + ': awoooooooo')}
+}
+
+const dog = Object.create(wolf, {
+    woof: { value: function() {console.log(this.name + ': woof')} }
+})
+
+const rufus = Object.create(dog, {
+    name: { value: 'Rufus the dog' },
+})
+
+rufus.woof()
+rufus.howl()
+
+```
+
+To describe the prototype chain:
+- the prototype of `rufus` is `dog`
+- the prototype of `dog` is `wolf`
+- the prototype of `wolf` is `Object.prototype`
+
+When `rufus.woof()` is called the JavaScript runtime performs the following steps:
+- Check if `rufus` has a `woof` property; it does not
+- Check if the prototype of `rufus` has a `woof` property; it does have a `woof` property, since it
+is `dog`
+- Execute the `woof` function setting `this` to `rufus`, so `this.name` will be "Rufus the dog"
+
+#### Instance Creation
+To complete the functional paradigm, the creation of an instance of a `dog` can be generalized with
+a function:
+```js
+const wolf = {
+  howl: function () { console.log(this.name + ': awoooooooo') }
+}
+
+const dog = Object.create(wolf, {
+  woof: { value: function() { console.log(this.name + ': woof') } }
+})
+
+function createDog (name) {
+  return Object.create(dog, {
+    name: {value: name + ' the dog'}
+  })
+}
+
+const rufus = createDog('Rufus')
+
+rufus.woof() // prints "Rufus the dog: woof"
+rufus.howl() // prints "Rufus the dog: awoooooooo"
+
+// The prototype of an object can be inspected with Object.getPrototypeOf:
+console.log(Object.getPrototypeOf(rufus) === dog) // true
+console.log(Object.getPrototypeOf(dog) === wolf) // true
 
 ```

@@ -181,13 +181,11 @@ rufus.howl() // prints "Rufus the dog: awooooooooo"
 
 ```
 
-The `wolf` object is a plain JavaScript object (literal syntax), the prototype of plain JS objects
-is `Object.prototype`.
-
 To describe the prototype chain:
 - the prototype of `rufus` is `dog`
 - the prototype of `dog` is `wolf`
-- the prototype of `wolf` is `Object.prototype`
+- the prototype of `wolf` is `Object.prototype`. The `wolf` object is a plain JavaScript object
+(literal syntax), the prototype of plain JS objects is `Object.prototype`.
 
 The `Object.getOwnPropertyDescriptor` can be used to get a **property descriptor** of an object, by
 specifying the object and the property name:
@@ -208,7 +206,7 @@ $ node -p "Object.getOwnPropertyDescriptor(global, 'process')"
 To describe the value of a property, the descriptor can either use `value` for a normal value or
 `get` and `set` to create a property getter/setter. The other properties are associated meta-data
 for the property are:
-- The `writable` property determines whether the property can be reassigned
+- `writable` determines whether the property can be reassigned
 - `enumerable` determines whether the property will be enumerated in property iterator
 abstractions like `Object.keys`
 - `configurable` sets wheter the property descriptor itself can be altered
@@ -287,5 +285,100 @@ rufus.howl() // prints "Rufus the dog: awoooooooo"
 // The prototype of an object can be inspected with Object.getPrototypeOf:
 console.log(Object.getPrototypeOf(rufus) === dog) // true
 console.log(Object.getPrototypeOf(dog) === wolf) // true
+
+```
+
+## Prototypal Inheritance (Constructor Functions)
+Creating a function with a specific prototype object can also be achieved by  calling a function
+with the `new` keyword. This is a common pattern in legacy code so it's worth understanding.
+
+All functions have a `prototype` property.
+```js
+// This is a constructor function.
+// It is a convention to use PascalCase for functions that are intended to be called with `new`
+function Wolf(name) {
+  this.name = name
+}
+
+// Every function always has a preexisting `prototype` object
+// In this case we're overwriting the previous `Wolf.prototype`
+Wolf.prototype.howl = function() {
+  console.log(this.name + ": awoooooooo")
+}
+function Dog(name) {
+  // The `call` function sets `this` dynamically
+  // Using the `call` method on a function allows the `this` object of the function being called
+  // to be set via the first argument passed to call
+  // All subsequent arguments become the function arguments, so the name argument passed to Wolf is
+  // "Rufus the dog"
+  // `Wolf.call` sets `this.name`, to the second argument `name` plus a string 
+  Wolf.call(this, name + ' the dog')
+  // TLDR: `Wolf.call` sets `this.name` to `Rufus the dog` by calling the `Wolf` constructor funct.
+}
+
+function inherit(proto) {
+  function ChainLink(){}
+  ChainLink.prototype = proto
+  return new ChainLink()
+}
+
+// `Dog.prototype` was explicitly assigned, overwriting the previous `Dog.prototype` object
+Dog.prototype = inherit(Wolf.prototype)
+
+Dog.prototype.woof = function() {
+  console.log(this.name + ": woof")
+}
+
+// The new `rufus` object created
+// The new object is also the this object within the Dog constructor function
+const rufus = new Dog('Rufus')
+
+rufus.woof() // prints "Rufus the dog: woof"
+rufus.howl() // prints "Rufus the dog: awoooooooo"
+
+// This will setup the same prototype chain as in the functional Prototypal inheritance example:
+console.log(Object.getPrototypeOf(rufus) === Dog.prototype)
+console.log(Object.getPrototypeOf(Dog) === Wolf.prototype)
+
+```
+
+There was no standard or native approach to this before **EcmaScript 5**, so legacy code bases may
+implements inheritance in multiple ways.
+
+#### EcmaScript 5+
+In JS runtimes that support **EcmaScript 5+**, `Object.create` function can be used to the same
+effect
+
+```js
+function Dog(name) {
+  Wolf.call(this, name + ' the dog')
+}
+
+Dog.prototype = Object.create(dog, {
+  name: {value: "Rufus"}
+})
+
+Dog.prototype.woof = function() {
+  console.log(this.name + ": woof")
+}
+
+```
+
+Node.js has a utility function: `util.inherits` that is often used in code bases using constructor
+functions:
+```js
+const util = require('util')
+
+function Wolf(name) {
+  this.name = name
+}
+
+Wolf.prototype.howl = function() {
+  console.log(this.name  ": awoooooooo")
+}
+
+function Dog(name) {
+  Wolf.call(this, name + ": the dog")
+}
 
 ```

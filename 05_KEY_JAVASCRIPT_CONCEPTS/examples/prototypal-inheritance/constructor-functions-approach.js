@@ -19,13 +19,15 @@ function Dog(name) {
     Wolf.call(this, name + ' the dog')
 }
 
+// `inherit` utility funnction uses an empty constructor function to create a new object with a
+// prototype pointing, in this case, to `Wolf.prototype`.
 function inherit(proto) {
     function ChainLink(){}
     ChainLink.prototype = proto
     return new ChainLink()
 }
 
-// `Dog.prototype` is explicitly assigned, overwriting the previous `Dog.prototype` object
+// `Dog.prototype` is explicitly assigned, overwriting the previous `Dog.prototype` objec
 Dog.prototype = inherit(Wolf.prototype)
 
 Dog.prototype.woof = function() {

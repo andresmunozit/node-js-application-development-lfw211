@@ -288,49 +288,55 @@ console.log(Object.getPrototypeOf(dog) === wolf) // true
 
 ```
 
-## Prototypal Inheritance (Constructor Functions)
+### Prototypal Inheritance (Constructor Functions)
 Creating a function with a specific prototype object can also be achieved by  calling a function
 with the `new` keyword. This is a common pattern in legacy code so it's worth understanding.
 
 All functions have a `prototype` property.
 ```js
+// 05_KEY_JAVASCRIPT_CONCEPTS/examples/prototypal-inheritance/constructor-functions-approach.js
 // This is a constructor function.
 // It is a convention to use PascalCase for functions that are intended to be called with `new`
 function Wolf(name) {
-  this.name = name
+    this.name = name
 }
 
 // Every function always has a preexisting `prototype` object
 // In this case we're overwriting the previous `Wolf.prototype`
 Wolf.prototype.howl = function() {
-  console.log(this.name + ": awoooooooo")
+    console.log(this.name + ": awoooooooo")
 }
 function Dog(name) {
-  // The `call` function sets `this` dynamically
-  // Using the `call` method on a function allows the `this` object of the function being called
-  // to be set via the first argument passed to call
-  // All subsequent arguments become the function arguments, so the name argument passed to Wolf is
-  // "Rufus the dog"
-  // `Wolf.call` sets `this.name`, to the second argument `name` plus a string 
-  Wolf.call(this, name + ' the dog')
-  // TLDR: `Wolf.call` sets `this.name` to `Rufus the dog` by calling the `Wolf` constructor funct.
+    // The `call` function sets `this` dynamically
+    // Using the `call` method on a function allows the `this` object of the function being called
+    // to be set via the first argument passed to call
+    // All subsequent arguments passed to call become the function arguments, so the name argument
+    // passed to Wolf is "Rufus the dog", when we instantiate `rufus` later
+    // `Wolf.call` sets `this.name`, to the second argument `name` plus a string 
+    Wolf.call(this, name + ' the dog')
 }
 
+// `inherit` utility funnction uses an empty constructor function to create a new object with a
+// prototype pointing, in this case, to `Wolf.prototype`.
 function inherit(proto) {
-  function ChainLink(){}
-  ChainLink.prototype = proto
-  return new ChainLink()
+    function ChainLink(){}
+    ChainLink.prototype = proto
+    return new ChainLink()
 }
 
-// `Dog.prototype` was explicitly assigned, overwriting the previous `Dog.prototype` object
+// `Dog.prototype` is explicitly assigned, overwriting the previous `Dog.prototype` objec
 Dog.prototype = inherit(Wolf.prototype)
 
 Dog.prototype.woof = function() {
-  console.log(this.name + ": woof")
+    console.log(this.name + ": woof")
 }
 
-// The new `rufus` object created
-// The new object is also the this object within the Dog constructor function
+// The new `rufus` object is created
+// The new object is also the `this` object within the Dog constructor function
+// The new object is also referenced via the `this` object inside the Wolf constructor
+// function
+// The `Wolf` constructor sets this.name to "Rufus the dog", which means that ultimately
+// `rufus.name` is set to "Rufus the dog"
 const rufus = new Dog('Rufus')
 
 rufus.woof() // prints "Rufus the dog: woof"
@@ -338,7 +344,7 @@ rufus.howl() // prints "Rufus the dog: awoooooooo"
 
 // This will setup the same prototype chain as in the functional Prototypal inheritance example:
 console.log(Object.getPrototypeOf(rufus) === Dog.prototype)
-console.log(Object.getPrototypeOf(Dog) === Wolf.prototype)
+console.log(Object.getPrototypeOf(Dog.prototype) === Wolf.prototype)
 
 ```
 
@@ -374,11 +380,124 @@ function Wolf(name) {
 }
 
 Wolf.prototype.howl = function() {
-  console.log(this.name  ": awoooooooo")
+  console.log(this.name + ': awoooooooo')
 }
 
-function Dog(name) {
-  Wolf.call(this, name + ": the dog")
+function Dog (name) {
+  Wolf.call(this, name + ' the dog')
 }
+
+Dog.prototype.woof = function () {
+  console.log(this.name + ': woof')
+}
+
+// `util.inherits(constructor, superConstructor)` Inherit the prototype methods from one constructor
+// into another
+util.inherits(Dog, Wolf)
+
+const rufus = new Dog('Rufus')
+
+rufus.woof() // Rufus the dog: woof
+rufus.howl() // Rufus the dog: awooooo
+
+console.log(Object.getPrototypeOf(rufus) === Dog.prototype) // true
+console.log(Object.getPrototypeOf(Dog.prototype) === Wolf.prototype) // true
+ 
+```
+
+In contemporary Node.js, util.inherits uses the EcmaScript 2015 (ES6) method `Object.setPrototypeOf`
+under the hood. It's essentially executing the following:
+```js
+const util = require('util')
+
+function Wolf(name) {
+  this.name = name
+}
+
+Wolf.prototype.howl = function() {
+  console.log(this.name + ': awoooooooo')
+}
+
+function Dog (name) {
+  Wolf.call(this, name + ' the dog')
+}
+
+Dog.prototype.woof = function () {
+  console.log(this.name + ': woof')
+}
+
+// `Object.setPrototypeOfObject.setPrototypeOf(o, proto)` Sets the prototype of a specified object o
+// to object proto or null. Returns the object o.
+Object.setPrototypeOf(Dog.prototype, Wolf.prototype)
+
+const rufus = new Dog('Rufus')
+
+rufus.woof() // Rufus the dog: woof
+rufus.howl() // Rufus the dog: awooooo
+
+console.log(Object.getPrototypeOf(rufus) === Dog.prototype) // true
+console.log(Object.getPrototypeOf(Dog.prototype) === Wolf.prototype) // true
 
 ```
+
+### Prototypal Inheritance (Class-Syntax Constructors)
+Modern JS (EcmaSript 2015+), has a `class` keyword; this is not the `class` keyword in other OOP
+languages. The `class` keyword is syntactic sugar for the same Constuctor Function discussed in the
+previous section.
+```sh
+$ node -p "class Foo{}; typeof Foo"  
+function
+
+```
+
+Class syntax creates prototype chains to provide Prototypal inheritance opposed to Classical
+inheritance. It also reduces boilerplate when creating a prototype chain.
+```js
+class Wolf {
+  constructor(name) {
+    this.name = name
+  }
+  howl() { console.log(this.name + ': awooooo') }
+}
+
+class Dog {
+  constructor(name) {
+    super(name + 'the dog')
+  }
+  woof() { console.log(this.name + ': woof') }
+}
+
+rufus = new Dog('Rufus')
+
+rufus.woof()
+rufus.howl()
+
+console.log(Object.getPrototypeOf(rufus) === Dog.prototype)
+console.log(Object.getprototypeOf(Dog.prototype) === Wolf.prototype)
+
+
+```
+
+In the Constructor Function example `Wolf.call(this, name + ' the dog')` is equivalent to
+`super(name + ' the dog')` in Dog's constructor method.
+
+The class syntax definition of `Wolf`, is desugared to:
+```js
+/* class Wolf {
+  constructor(name) {
+    this.name = name
+  }
+  howl() { console.log(this.name + ': awooooo') }
+} */
+
+function Wolf(name) {
+  this.name = name
+}
+
+Wolf.prototype.howl = function() { console.log(this.name + ': awoooooooo') }
+
+```
+
+## Closure Scope
+When a function is created, an invisible object is created, this is known as the closure scope.
+Parameters and variables created in the function are stored on this invisible object.

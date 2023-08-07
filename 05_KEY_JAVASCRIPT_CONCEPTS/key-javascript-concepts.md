@@ -289,7 +289,7 @@ console.log(Object.getPrototypeOf(dog) === wolf) // true
 ```
 
 ### Prototypal Inheritance (Constructor Functions)
-Creating a function with a specific prototype object can also be achieved by  calling a function
+Creating a function with a specific prototype object can also be achieved by calling a function
 with the `new` keyword. This is a common pattern in legacy code so it's worth understanding.
 
 All functions have a `prototype` property.
@@ -306,6 +306,7 @@ function Wolf(name) {
 Wolf.prototype.howl = function() {
     console.log(this.name + ": awoooooooo")
 }
+
 function Dog(name) {
     // The `call` function sets `this` dynamically
     // Using the `call` method on a function allows the `this` object of the function being called
@@ -316,7 +317,7 @@ function Dog(name) {
     Wolf.call(this, name + ' the dog')
 }
 
-// `inherit` utility funnction uses an empty constructor function to create a new object with a
+// `inherit` utility function uses an empty constructor function to create a new object with a
 // prototype pointing, in this case, to `Wolf.prototype`.
 function inherit(proto) {
     function ChainLink(){}
@@ -324,7 +325,7 @@ function inherit(proto) {
     return new ChainLink()
 }
 
-// `Dog.prototype` is explicitly assigned, overwriting the previous `Dog.prototype` objec
+// `Dog.prototype` is explicitly assigned, overwriting the previous `Dog.prototype` object
 Dog.prototype = inherit(Wolf.prototype)
 
 Dog.prototype.woof = function() {
@@ -349,18 +350,23 @@ console.log(Object.getPrototypeOf(Dog.prototype) === Wolf.prototype)
 ```
 
 There was no standard or native approach to this before **EcmaScript 5**, so legacy code bases may
-implements inheritance in multiple ways.
+implement inheritance in multiple ways.
 
 #### EcmaScript 5+
 In JS runtimes that support **EcmaScript 5+**, `Object.create` function can be used to the same
 effect
 
 ```js
+function Wolf(name) {
+  this.name = name
+}
+
 function Dog(name) {
   Wolf.call(this, name + ' the dog')
 }
 
-Dog.prototype = Object.create(dog, {
+// We use the prototype of `Wolf` for specifying prototypal inheritance
+Dog.prototype = Object.create(Wolf.prototype, {
   name: {value: "Rufus"}
 })
 
@@ -373,6 +379,7 @@ Dog.prototype.woof = function() {
 Node.js has a utility function: `util.inherits` that is often used in code bases using constructor
 functions:
 ```js
+// 05_KEY_JAVASCRIPT_CONCEPTS/examples/prototypal-inheritance/constructor-functions-util-inherits.js
 const util = require('util')
 
 function Wolf(name) {
@@ -405,9 +412,10 @@ console.log(Object.getPrototypeOf(Dog.prototype) === Wolf.prototype) // true
  
 ```
 
-In contemporary Node.js, util.inherits uses the EcmaScript 2015 (ES6) method `Object.setPrototypeOf`
-under the hood. It's essentially executing the following:
+In contemporary Node.js, `util.inherits` uses the EcmaScript 2015 (ES6) method
+`Object.setPrototypeOf` sunder the hood. It's essentially executing the following:
 ```js
+// 05_KEY_JAVASCRIPT_CONCEPTS/examples/prototypal-inheritance/constructor-functions-set-prototype-of.js
 const util = require('util')
 
 function Wolf(name) {
@@ -453,28 +461,36 @@ function
 Class syntax creates prototype chains to provide Prototypal inheritance opposed to Classical
 inheritance. It also reduces boilerplate when creating a prototype chain.
 ```js
+// 05_KEY_JAVASCRIPT_CONCEPTS/examples/prototypal-inheritance/class-syntax-constructors.js
 class Wolf {
-  constructor(name) {
-    this.name = name
-  }
-  howl() { console.log(this.name + ': awooooo') }
+    constructor(name) {
+        this.name = name
+    }
+    howl() { console.log(this.name + ': awoooooooo') }
 }
 
-class Dog {
-  constructor(name) {
-    super(name + 'the dog')
-  }
-  woof() { console.log(this.name + ': woof') }
+// `extends` will ensure that the prototype of `Dog.prototype` will be `Wolf.prototype`
+class Dog extends Wolf {
+    constructor(name) {
+        // The `super` keyword is a generic way to call the parent class constructor while setting
+        // the `this` keyword to the current instance.
+        super(name + 'the dog')
+    }
+
+    // Any methods other than constructor are added to the prototype object of the function that the
+    // class syntax creates.
+    woof() { console.log(this.name + ': woof') }
 }
 
-rufus = new Dog('Rufus')
+const rufus = new Dog('Rufus')
 
-rufus.woof()
-rufus.howl()
+rufus.woof() // prints "Rufus the dog: woof"
+rufus.howl() // prints "Rufus the dog: awoooooooo"
 
-console.log(Object.getPrototypeOf(rufus) === Dog.prototype)
-console.log(Object.getprototypeOf(Dog.prototype) === Wolf.prototype)
-
+// This will setup the same prototype chain as in the Functional Prototypal Inheritance and the
+// Function Constructors Prototypal Inheritance examples:
+console.log(Object.getPrototypeOf(rufus) === Dog.prototype) // true
+console.log(Object.getPrototypeOf(Dog.prototype) === Wolf.prototype) // true
 
 ```
 
@@ -500,4 +516,113 @@ Wolf.prototype.howl = function() { console.log(this.name + ': awoooooooo') }
 
 ## Closure Scope
 When a function is created, an invisible object is created, this is known as the closure scope.
-Parameters and variables created in the function are stored on this invisible object.
+**Parameters** and **variables** created in the function are stored on this invisible object.
+
+When a function is inside another function, it can access both its own closure scope, and the parent
+closure scope:
+```js
+// 05_KEY_JAVASCRIPT_CONCEPTS/examples/closure-scope/closure-scope.js
+function outerFn() {
+    var foo = true
+    function print() { console.log(foo) }
+    print() // prints true
+    foo = false
+
+    // The outer variable is accessed when the inner function is invoked, this is why the second
+    // `print` call outputs `false` after foo is updated to `false`
+    print() // prints false
+}
+
+outerFn()
+
+```
+
+If there is a naming collision then the reference to the nearest closure scope takes preference:
+```js
+// 05_KEY_JAVASCRIPT_CONCEPTS/examples/closure-scope/closure-scope-collision.js
+function outerFn () {
+    var foo = true
+    function print(foo) { console.log(foo) }
+
+    // In this case the foo parameter of `print` overrides the foo variable in the `outerFn`
+    // function.
+    print(1) // prints 1
+    foo = false
+    print(2) // prints 2
+}
+
+outerFn()
+
+```
+
+Closure scope cannot be accessed outside of a function:
+```js
+// 05_KEY_JAVASCRIPT_CONCEPTS/examples/closure-scope/closure-scope-outside.js
+function outerFn() {
+    var foo = true
+}
+
+outerFn()
+console.log(foo) // Will trow a `ReferenceError: foo is not defined`
+
+```
+
+Functions returning functions encapsulate private state through closure scope:
+```js
+// 05_KEY_JAVASCRIPT_CONCEPTS/examples/closure-scope/closure-scope-encapsulation-secret.js
+// `init` function sets an `id` in its scope and takes an argument called `type`, then  returns a
+// function
+function init(type){
+    var id = 0
+    // Closure scope rules apply in exactly the same way to fat arrow functions
+    return (name) => {
+        id +=1
+        return { id: id, type: type, name: name }
+    }
+}
+
+// The returned function has access to `type` and `id` because it has access to the parent closure
+// scope
+// The following two functions have access to two separate instances of the `init` functions closure
+// scope
+const createUser = init('user')
+const createBook = init('book')
+
+// The first call to `createUser` returns an object with an id `id` 1. The initial value is set to
+// 0 at the returned function's outer scope, and then it's set to 1 before returning the object.
+const dave = createUser('Dave')
+
+// The second call to `createUser` returns an object with id of 2. This is because the first call of
+// `createUser` already incremented id from 0 to 1
+const annie = createUser('Annie')
+
+// The only call to the `createBook` function however, returns an id of 1 (as opposed to 3), because
+// `createBook` function is a different instance of the function returned from `init` and therefore
+// accesses a separate instance of the `init` function's scope
+const ncb = createBook('Node Cookbook')
+
+console.log(dave) //prints {id: 1, type: 'user', name: 'Dave'}
+console.log(annie) //prints {id: 2, type: 'user', name: 'Annie'}
+console.log(ncb) //prints {id: 1, type: 'book', name: 'Node Cookbook'}
+
+```
+
+Another example of encapsulating state using closure scope would be to enclose a secret:
+```js
+// Note, in this code `createKeypair` and `cryptoSign` are imaginary functions, these are purely for
+// outlining the concept of the encapsulation of secrets.
+function createSigner(secret) {
+    const keypair = createKeypair(secret)
+    return function(content) {
+        return {
+            signed: cryptoSign(content, keypair.privateKey),
+            publicKey: keypair.publicKey
+        }
+    }
+}
+
+const sign = createSigner('super secret thing')
+const signedContent = sign('sign me')
+const moreSignedContent = sign('sign me as well')
+
+```

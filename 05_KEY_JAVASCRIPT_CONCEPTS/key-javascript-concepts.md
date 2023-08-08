@@ -544,8 +544,8 @@ function outerFn () {
     var foo = true
     function print(foo) { console.log(foo) }
 
-    // In this case the foo parameter of `print` overrides the foo variable in the `outerFn`
-    // function.
+    // In this case the foo parameter of `print` takes preference over the foo variable in the
+    // `outerFn` function.
     print(1) // prints 1
     foo = false
     print(2) // prints 2
@@ -626,3 +626,145 @@ const signedContent = sign('sign me')
 const moreSignedContent = sign('sign me as well')
 
 ```
+
+Closure scope can also be used as an alternative to prototypal inheritance:
+```js
+// 05_KEY_JAVASCRIPT_CONCEPTS/examples/closure-scope/closure-scope-protinherit-alt.js
+function wolf (name) {
+    // The state (name) is contained in closure scope and not exposed on the instantiated object,
+    // it's encapsulated as private state.
+    const howl = () => {
+      console.log(name + ': awoooooooo')
+    }
+    return { howl: howl }
+}
+
+function dog (name) {
+    name = name + ' the dog'
+    const woof = () => { console.log(name + ': woof') }
+    return {
+        // `...` is called spread operator, which copies the properties from an object into another
+        ...wolf(name),
+        woof: woof
+    }
+}
+
+// There is no prototype chain being set up here, the prototype of rufus is `Object.prototype` and
+// that's it
+const rufus = dog('Rufus')
+
+// `rufus.woof()` is called the woof accesses `name` from it's parent scope, that is, the closure
+// scope of dog.
+rufus.woof() // prints "Rufus the dog: woof"
+rufus.howl() // prints "Rufus the dog: awoooooooo"
+
+```
+
+Using closure scope for object composition avoids issues with prototypes, `this` context,
+and unintended effects of omitting `new`. While it might create more internal functions per instance
+compared to shared prototype methods, modern JavaScript engines optimize well. Prioritize ergonomics
+and maintainability; use function composition over prototypal inheritance and optimize later if
+needed.
+
+## Labs
+See the labs at `./249ymzn0nkk5-LFW211Labs06.28.2023.pdf`:
+
+### Lab 5.1 - Closure Scope
+```js
+// 05_KEY_JAVASCRIPT_CONCEPTS/labs/5.1-closure-scope.js
+// Excercise: Implement the prefixer function
+'use strict'
+
+// Solution
+function prefixer(prefix) {
+    return function(name) { 
+        return prefix + name
+    }
+}
+//
+
+const sayHiTo = prefixer('Hello ')
+const sayByeTo = prefixer('Goodbye ')
+console.log(sayHiTo('Dave')) // prints 'Hello Dave'
+console.log(sayHiTo('Annie')) // prints 'Hello Annie'
+console.log(sayByeTo('Dave')) // prints 'Goodbye Dave'
+
+```
+
+### sLab 5.2 - Prototypal Inheritance
+```js
+// 05_KEY_JAVASCRIPT_CONCEPTS/labs/5.2-prototypal-inheritance.js
+const assert = require('assert')
+// TODO:
+// implement a way to create a prototype chain
+// of leopard -> lynx -> cat
+// leopard prototype must have ONLY a hiss method
+// lynx prototype must have ONLY a purr method
+// cat prototype must have ONLY a meow method
+
+// Solution
+class Leopard {
+    constructor(name) {
+        this.name = name 
+    }
+    hiss() {
+        console.log(this.name + ': hsss')
+    }
+}
+
+class Lynx extends Leopard {
+    constructor(name) {
+        super(name)
+    }
+    purr() {
+        console.log(this.name + ': prrr')
+    }
+}
+
+class Cat extends Lynx {
+    constructor(name) {
+        super(name + ' the cat')
+    }
+    meow() {
+        console.log(this.name + ': meow')
+    }
+}
+// 
+
+// const felix = null //TODO replace null with instantiation of a cat
+const felix = new Cat('Felix')
+felix.meow() // prints Felix the cat: meow
+felix.purr() // prints Felix the cat: prrr
+felix.hiss() // prints Felix the cat: hsss
+
+// prototype checks, do not remove
+const felixProto = Object.getPrototypeOf(felix)
+const felixProtoProto = Object.getPrototypeOf(felixProto)
+const felixProtoProtoProto = Object.getPrototypeOf(felixProtoProto)
+assert(Object.getOwnPropertyNames(felixProto).length, 1)
+assert(Object.getOwnPropertyNames(felixProtoProto).length, 1)
+assert(Object.getOwnPropertyNames(felixProtoProto).length, 1)
+assert(typeof felixProto.meow, 'function')
+assert(typeof felixProtoProto.purr, 'function')
+assert(typeof felixProtoProtoProto.hiss, 'function')
+
+console.log('prototype checks passed!')
+
+```
+
+## Knowledge Check
+1. When a function is on an object which is the prototype of another object (the "instance"), and the
+function is called on the instance object what does `this` (usually) refer to?
+- A. The prototype object
+- B. The instance object [x]
+- C. The global object
+
+2. What does the extend keyword do?
+- A. Inherits from an abstract class
+- B. Copies properties from one object to another
+- C. Sets up part of a prototype chain [x]
+
+3. From where can closure scope be accessed?
+- A. Inside a function and any functions within that function [x]
+- B. From the outside of a function
+- C. Anywhere

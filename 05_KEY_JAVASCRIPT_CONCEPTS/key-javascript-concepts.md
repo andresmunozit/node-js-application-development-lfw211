@@ -733,6 +733,7 @@ class Cat extends Lynx {
 
 // const felix = null //TODO replace null with instantiation of a cat
 const felix = new Cat('Felix')
+
 felix.meow() // prints Felix the cat: meow
 felix.purr() // prints Felix the cat: prrr
 felix.hiss() // prints Felix the cat: hsss
@@ -753,13 +754,13 @@ console.log('prototype checks passed!')
 ```
 
 ## Knowledge Check
-1. When a function is on an object which is the prototype of another object (the "instance"), and the
-function is called on the instance object what does `this` (usually) refer to?
+1. When a function is on an object which is the prototype of another object (the "instance"), and
+the function is called on the instance object what does `this` (usually) refer to?
 - A. The prototype object
 - B. The instance object [x]
 - C. The global object
 
-2. What does the extend keyword do?
+2. What does the `extend` keyword do?
 - A. Inherits from an abstract class
 - B. Copies properties from one object to another
 - C. Sets up part of a prototype chain [x]

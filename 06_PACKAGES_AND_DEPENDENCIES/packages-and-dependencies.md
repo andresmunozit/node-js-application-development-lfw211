@@ -73,8 +73,8 @@ In a folder with `package.json`, running `npm init` updates it. If it's also a g
 remote repo, npm `init -y` will auto-fill the remote URL from git into package.json.
 
 ## Installing Dependencies
-Once a folder has a package.json  file, dependencies can be installed using `npm install pino` (pino
-is a logger):
+Once a folder has a package.json  file, dependencies can be installed using `npm install pino` 
+(`pino` is a logger):
 ```sh
 # Running npm install pino without specifying a version will install the latest version of the
 # package
@@ -125,7 +125,7 @@ found 0 vulnerabilities
 
 ```
 
-The dependencies object have changed:
+The dependencies object has changed:
 ```json
 // 06_PACKAGES_AND_DEPENDENCIES/examples/my-package/package.json
 {
@@ -168,7 +168,7 @@ To manually generate a `package-lock.json` we can use `npm install --package-loc
 
 It's important to understand that dependencies have to be manually upgraded (even for patch and
 minor) if a `package-lock.json` is present. Whether to use the default package-lock behavior will
-depends on **context** and **preference**.
+depends on **context** and **preference** of each project.
 
 ### node_modules
 The `node_modules` folder contains the logger package, along with all the packages in its dependency
@@ -277,7 +277,7 @@ found 0 vulnerabilities
 # Logger has been installed again
 $ npm ls --depth=999
 
-my-package@1.0.0 /home/andres/code/andresmunozit/node-js-application-development-lfw211/06_PACKAGES_AND_DEPENDENCIES/examples/my-package
+my-package@1.0.0 /.../my-package
 └─┬ pino@7.11.0
   ├── atomic-sleep@1.0.0
   ├── fast-redact@3.3.0
@@ -307,5 +307,254 @@ my-package@1.0.0 /home/andres/code/andresmunozit/node-js-application-development
 
 ```
 
-> The `node_modules` folder should not be checked into git, the package.json should be the source of
+> The `node_modules` folder should not be checked into git, `package.json` should be the source of
 truth
+
+## Development Dependencies
+When you use npm install without flags, it adds the dependency to the "dependencies" section in
+`package.json`. Some dependencies are just for development, not production, and these are called
+"development dependencies".
+
+Only the main development dependencies are installed, not the ones for sub-dependencies.
+
+Dependencies and development dependencies can be viewed in the Dependency tab of any given package
+on npmjs.com, see an example for [pino](https://www.npmjs.com/package/pino?activeTab=dependencies).
+```sh
+# We can see that only the production dependencies are installed 
+$ npm ls --depth=999
+
+my-package@1.0.0 /.../my-package
+└─┬ pino@7.11.0
+  ├── atomic-sleep@1.0.0 # `atomic-sleep` dependency appears twice
+  ├── fast-redact@3.3.0
+  ├── on-exit-leak-free@0.2.0
+  ├─┬ pino-abstract-transport@0.5.0
+  │ ├─┬ duplexify@4.1.2
+  │ │ ├─┬ end-of-stream@1.4.4
+  │ │ │ └─┬ once@1.4.0
+  │ │ │   └── wrappy@1.0.2
+  │ │ ├── inherits@2.0.4
+  │ │ ├─┬ readable-stream@3.6.2
+  │ │ │ ├── inherits@2.0.4 deduped
+  │ │ │ ├─┬ string_decoder@1.3.0
+  │ │ │ │ └── safe-buffer@5.2.1
+  │ │ │ └── util-deprecate@1.0.2
+  │ │ └── stream-shift@1.0.1
+  │ └── split2@4.2.0
+  ├── pino-std-serializers@4.0.0
+  ├── process-warning@1.0.0
+  ├── quick-format-unescaped@4.0.4
+  ├── real-require@0.1.0
+  ├── safe-stable-stringify@2.4.3
+  ├─┬ sonic-boom@2.8.0
+  │ └── atomic-sleep@1.0.0 deduped # `atomic-sleep` dependency appears twice
+  └─┬ thread-stream@0.15.2
+    └── real-require@0.1.0 deduped
+
+```
+
+Notice how the `atomic-sleep` sub-dependency occurs twice in the output. The `atomic-sleep` module
+is a dependency of `pino` and its direct dependency `sonic-boom`, which allows `npm` to place a
+single `atomic-sleep` package in the `modules` folder.
+
+Let's install the `standard` linter as a development dependency into `my-package`:
+```sh
+$ npm install --save-dev standard
+
+added 220 packages, and audited 244 packages in 7s
+
+94 packages are looking for funding
+  run `npm fund` for details
+
+found 0 vulnerabilities
+
+```
+
+Now let's take a look to the `package.json` file:
+```json
+{
+  // 06_PACKAGES_AND_DEPENDENCIES/examples/my-package/package.json
+  "name": "my-package",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "pino": "^7.11.0"
+  },
+  // The `devDependencies` object has been added to `the package.json` file
+  "devDependencies": {
+    "standard": "^17.1.0"
+  }
+}
+
+```
+
+```sh
+# A much larger dependency tree is revelaed
+$ npm ls --depth=999
+my-package@1.0.0 /.../my-package
+├─┬ pino@7.11.0
+│ ├── atomic-sleep@1.0.0
+│ ├── fast-redact@3.3.0
+│ ├── on-exit-leak-free@0.2.0
+│ ├─┬ pino-abstract-transport@0.5.0
+│ │ ├─┬ duplexify@4.1.2
+│ │ │ ├─┬ end-of-stream@1.4.4
+│ │ │ │ └─┬ once@1.4.0
+│ │ │ │   └── wrappy@1.0.2
+│ │ │ ├── inherits@2.0.4
+│ │ │ ├─┬ readable-stream@3.6.2
+│ │ │ │ ├── inherits@2.0.4 deduped
+│ │ │ │ ├─┬ string_decoder@1.3.0
+│ │ │ │ │ └── safe-buffer@5.2.1
+│ │ │ │ └── util-deprecate@1.0.2
+│ │ │ └── stream-shift@1.0.1
+│ │ └── split2@4.2.0
+│ ├── pino-std-serializers@4.0.0
+│ ├── process-warning@1.0.0
+│ ├── quick-format-unescaped@4.0.4
+│ ├── real-require@0.1.0
+│ ├── safe-stable-stringify@2.4.3
+│ ├─┬ sonic-boom@2.8.0
+│ │ └── atomic-sleep@1.0.0 deduped
+│ └─┬ thread-stream@0.15.2
+│   └── real-require@0.1.0 deduped
+└─┬ standard@17.1.0
+  ├─┬ eslint-config-standard-jsx@11.0.0
+  │ ├── eslint-plugin-react@7.33.1 deduped
+  │ └── eslint@8.46.0 deduped
+# ...
+  │ │   └── type-fest@0.3.1
+  │ └── xdg-basedir@4.0.0
+  └── version-guard@1.1.1
+
+```
+
+We don't want to install any dependencies that aren't required in production:
+```sh
+# The `--omit=dev` flag can be used to ignore development dependencies
+
+# Let's remove the modules folder
+$ node -e "fs.rmSync('node_modules', {recursive: true})"
+
+# Let's ignore development dependencies for the following installation
+$ npm install --omit=dev
+
+added 23 packages, and audited 24 packages in 6s
+
+1 package is looking for funding
+  run `npm fund` for details
+
+found 0 vulnerabilities
+
+# Only `pino` will be installed when `--omit=dev` is used because standard is `specified` as a
+# development dependency in the package.json. This can be verified
+$ npm ls --depth=999
+
+npm ERR! code ELSPROBLEMS
+npm ERR! missing: standard@^17.1.0, required by my-package@1.0.0
+my-package@1.0.0 /home/andres/code/andresmunozit/node-js-application-development-lfw211/06_PACKAGES_AND_DEPENDENCIES/examples/my-package
+├─┬ pino@7.11.0
+│ ├── atomic-sleep@1.0.0
+│ ├── fast-redact@3.3.0
+│ ├── on-exit-leak-free@0.2.0
+│ ├─┬ pino-abstract-transport@0.5.0
+│ │ ├─┬ duplexify@4.1.2
+│ │ │ ├─┬ end-of-stream@1.4.4
+│ │ │ │ └─┬ once@1.4.0
+│ │ │ │   └── wrappy@1.0.2
+│ │ │ ├── inherits@2.0.4
+│ │ │ ├─┬ readable-stream@3.6.2
+│ │ │ │ ├── inherits@2.0.4 deduped
+│ │ │ │ ├─┬ string_decoder@1.3.0
+│ │ │ │ │ └── safe-buffer@5.2.1
+│ │ │ │ └── util-deprecate@1.0.2
+│ │ │ └── stream-shift@1.0.1
+│ │ └── split2@4.2.0
+│ ├── pino-std-serializers@4.0.0
+│ ├── process-warning@1.0.0
+│ ├── quick-format-unescaped@4.0.4
+│ ├── real-require@0.1.0
+│ ├── safe-stable-stringify@2.4.3
+│ ├─┬ sonic-boom@2.8.0
+│ │ └── atomic-sleep@1.0.0 deduped
+│ └─┬ thread-stream@0.15.2
+│   └── real-require@0.1.0 deduped
+└── UNMET DEPENDENCY standard@^17.1.0
+
+
+npm ERR! A complete log of this run can be found in:
+npm ERR!     /home/andres/.npm/_logs/2023-08-10T22_08_08_675Z-debug-0.log
+
+```
+
+We can ignore the error message since we omitted the development dependency deliberately.
+
+Earlier versions of `npm` supported the same functionality with the `--production` flag, which is
+still supported but deprecated.
+
+## Understanding Semver
+A SemVer is basically three numbers separated by dots. A version number is updated when a change was
+made to the package. The three numbers separated by dots represent different typs of change:
+- **MAJOR**: The left most number. It means that the change breaks an API or a behavior
+- **MINOR**: Is the middle number. It means that the package has been extended, fr example a new
+method, but it's fully backwards compatible
+- **PATCH**: Is the right most number. It means that there as been a bug fix.
+
+More information at [SemVer's website](https://semver.org/).
+
+A SemVer range allows for flexible versioning strategy. One way is to use the character "x" in any
+of the `MAJOR.MINOR.PATCH` positions, for example:
+- `1.2.x` will match all `PATCH` numbers
+- `1.x.x` will match all `MINOR` and `PATCH` numbers
+
+Another way for defining a SemVer range is use the caret (^):
+- Using a caret on version numbers is basically the same as using an "x" in the `MINOR` and `PATCH`
+positions (for example `1.x.x`)
+- There are exceptions when using 0: `^0.0.0` is not the same as `0.x.x`. See
+[this docs](https://github.com/npm/node-semver#caret-ranges-123-025-004).
+
+Let's see the `dependencies` and `devDependencies` fields of the `package.json` file:
+```json
+{
+// ...
+  "dependencies": {
+    "pino": "^7.11.0"
+  },
+  "devDependencies": {
+    "standard": "^17.1.0"
+  }
+}
+// ...
+
+```
+
+## Package Scripts
+The `scripts` field in `package.json` can be used to define aliases for shell commands that are
+relevant to a Node.js project.
+
+Let's update the scripts property to add a script:
+```json
+{
+  // ...
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+
+    // Let's add a new script
+    "lint":  "standard"
+  },
+  // ...
+}
+
+```
+
+`standard` is a code linter installed previously as a development dependency. See
+[standard's docs](https://standardjs.com/) for more details.
+
+Packages can define a `bin` field in their `package.json`, which will associate a namespace with a
+Node program script within that package

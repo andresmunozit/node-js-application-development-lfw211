@@ -311,11 +311,12 @@ my-package@1.0.0 /.../my-package
 truth
 
 ## Development Dependencies
-When you use npm install without flags, it adds the dependency to the "dependencies" section in
-`package.json`. Some dependencies are just for development, not production, and these are called
-"development dependencies".
+When you use `npm install [dependency]` without flags, it adds the dependency to the "dependencies"
+section in `package.json`. Some dependencies are just for development, not production, and these are
+called "development dependencies".
 
-Only the main development dependencies are installed, not the ones for sub-dependencies.
+Only top level *development dependencies* are installed, not the *development dependencies* for
+sub-dependencies.
 
 Dependencies and development dependencies can be viewed in the Dependency tab of any given package
 on npmjs.com, see an example for [pino](https://www.npmjs.com/package/pino?activeTab=dependencies).
@@ -500,11 +501,12 @@ still supported but deprecated.
 
 ## Understanding Semver
 A SemVer is basically three numbers separated by dots. A version number is updated when a change was
-made to the package. The three numbers separated by dots represent different typs of change:
+made to the package. The three numbers separated by dots represent different types of change:
+
 - **MAJOR**: The left most number. It means that the change breaks an API or a behavior
-- **MINOR**: Is the middle number. It means that the package has been extended, fr example a new
+- **MINOR**: Is the middle number. It means that the package has been extended, for example a new
 method, but it's fully backwards compatible
-- **PATCH**: Is the right most number. It means that there as been a bug fix.
+- **PATCH**: Is the right most number. It means that there has been a bug fix.
 
 More information at [SemVer's website](https://semver.org/).
 
@@ -546,7 +548,7 @@ Let's update the scripts property to add a script:
     "test": "echo \"Error: no test specified\" && exit 1",
 
     // Let's add a new script
-    "lint":  "standard"
+    "lint": "standard"
   },
   // ...
 }
@@ -557,4 +559,220 @@ Let's update the scripts property to add a script:
 [standard's docs](https://standardjs.com/) for more details.
 
 Packages can define a `bin` field in their `package.json`, which will associate a namespace with a
-Node program script within that package
+Node program script within that package. For the case of standard:
+```json
+// This is the standard package `package.json` file
+{
+  "name": "standard",
+  "description": "JavaScript Standard Style",
+  "version": "17.1.0",
+  "author": {
+    "name": "Feross Aboukhadijeh",
+    "email": "feross@feross.org",
+    "url": "https://feross.org"
+  },
+  "bin": {
+    // This will associate the `namespace` standard with the Node script `bin/cmd.cjs` 
+    "standard": "bin/cmd.cjs"
+  },
+  //  ....
+}
+
+```
+
+This is the content of the Node program scipt for `standard`:
+```js
+#!/usr/bin/env node
+
+require('version-guard')('../lib/cli.js', 12, 22)
+
+```
+
+Following with the `lint` script example, let's create some code to be able to lint it:
+```js
+// 06_PACKAGES_AND_DEPENDENCIES/examples/my-package/index.js
+'use strict';
+console.log('my-package started');
+proccess.stdin.resume();
+
+```
+
+```sh
+# let's install all the dependencies running `npm install` then 
+$ npm install
+
+# To execute the `lint` script run `npm run`
+$ npm run lint
+> my-package@1.0.0 lint
+> standard
+
+standard: Use JavaScript Standard Style (https://standardjs.com)
+standard: Run `standard --fix` to automatically fix some problems.
+  /home/andres/code/andresmunozit/node-js-application-development-lfw211/06_PACKAGES_AND_DEPENDENCIES/examples/my-package/index.js:1:13: Extra semicolon. (semi)
+  /home/andres/code/andresmunozit/node-js-application-development-lfw211/06_PACKAGES_AND_DEPENDENCIES/examples/my-package/index.js:2:34: Extra semicolon. (semi)
+  /home/andres/code/andresmunozit/node-js-application-development-lfw211/06_PACKAGES_AND_DEPENDENCIES/examples/my-package/index.js:3:23: Extra semicolon. (semi)
+
+# We have lint errors, let's fix them by using the `--fix` flag, we can use a double dash (--) to
+# pass flags via `npm run` to the aliased command
+$ npm run lint -- --fix
+
+> my-package@1.0.0 lint
+> standard --fix
+
+# As a result the `index.js` file was aletered according to the lint rules, and saved.
+$ node -p "fs.readFileSync('index.js').toString()" 
+'use strict'
+console.log('my-package started')
+process.stdin.resume()
+
+```
+
+There are two package scripts that have dedicated npm commands: `npm test` and `npm start`.
+```sh
+# Let's execute the `npm test` script that was created automatically during `npm init -y`
+$ npm test
+> my-package@1.0.0 test
+> echo "Error: no test specified" && exit 1
+
+Error: no test specified
+
+# Given the `test` script, the output is expected.
+
+```
+
+The `npm test` command is an alias for `npm run test`, this aliases only applies to `test` and
+`start` scripts:
+```json
+{
+  "name": "my-package",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "lint":  "standard",
+    // Let's create the start script
+    "start": "node index.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "pino": "^7.11.0"
+  },
+  "devDependencies": {
+    "standard": "^17.1.0"
+  }
+}
+
+```
+
+Let's execute the `start` script, using the node `start alias`:
+```sh
+$ npm start
+npm start
+
+> my-package@1.0.0 start
+> node index.js
+
+my-package started
+
+# Press Ctrl + C to exit
+
+```
+
+## Labs
+### Lab 6.1 - Install a Development Dependency
+The `./labs/labs-1` folder has a package.json file in it. Install `nonsynchronous`
+([https://www.npmjs.com/package/nonsynchronous]) as a development dependency.
+
+Run `npm test` in the `labs-1` folder to check that the task has been completed.
+
+If the output says "passed" then the task was completed correctly.
+
+Solution:
+```sh
+$ npm install nonsynchronous --save-dev
+
+added 3 packages, and audited 4 packages in 2s
+
+found 0 vulnerabilities
+
+$ npm test
+
+> labs-1@1.0.0 test
+> node test
+
+passed
+
+```
+
+### Lab 6.2 - Install a Dependency Using a Semver Range
+The `./labs/labs-2` folder contains a `package.json` file.
+
+Install the following dependencies at the specified version ranges, and ensure that those ranges
+are correctly specified in the `package.json` file:
+
+- Install `fastify` at greater than or equal to `2.0.0`, while accepting all future MINOR and
+PATCH versions
+- Install `rfdc` at exactly version `1.1.3`
+
+Run `npm install` to install the development dependency required to validate this exercise,
+and then run npm test in the `./labs/labs-2` folder to check that the task has been completed:
+
+Solution:
+```json
+// 06_PACKAGES_AND_DEPENDENCIES/labs/labs-2/package.json
+{
+  "name": "labs-2",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "node test"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    // This is correct, no changes are required
+    "fastify": "^2.0.0",
+    "rfdc": "1.1.3",
+    "semver": "^7.3.4"
+  }
+}
+
+```
+
+```sh
+$ npm install
+# ok
+
+$ npm npm test 
+
+> labs-2@1.0.0 test
+> node test
+
+passed
+
+```
+
+## Knowledge Check
+### Question 6.1
+Which of the following cases would all be covered in a SemVer range of `^2.1.2`?
+- A. 2.14.2, 2.1.1, 2.11.14
+- B. 2.14.2, 2.16.1, 2.14.4 [x]
+- C. 2.18.6, 3.13.3, 2.1.3
+
+### Question 6.2
+Given two "scripts" fields in the `package.json` file named "test" and "lint", which of the
+following commands would execute both scripts?
+- A. npm test && npm lint
+- B. npm run test lint
+- C. npm run lint && npm test [x]
+
+### Question 6.3
+If a *package dependency* has a *development dependency*, in what scenario, if any, will the
+development dependency be installed?
+- A. When running npm install inside the package folder
+- B. Never [x]
+- C. When running npm install --production inside the package folder

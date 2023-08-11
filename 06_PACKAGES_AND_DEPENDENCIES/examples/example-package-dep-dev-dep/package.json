@@ -1,17 +1,16 @@
 {
-  "name": "my-package",
+  "name": "example-package-dep-dev-dep",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "lint":  "standard",
-    "start": "node index.js"
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
+  "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "pino": "^7.11.0"
+    "pino": "^8.15.0"
   },
   "devDependencies": {
     "standard": "^17.1.0"

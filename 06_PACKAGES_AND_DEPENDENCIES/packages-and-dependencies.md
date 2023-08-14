@@ -666,7 +666,7 @@ The `npm test` command is an alias for `npm run test`, this aliases only applies
 
 ```
 
-Let's execute the `start` script, using the node `start alias`:
+Let's execute the `start` script, using the node `start` alias:
 ```sh
 $ npm start
 npm start
@@ -682,8 +682,8 @@ my-package started
 
 ## Labs
 ### Lab 6.1 - Install a Development Dependency
-The `./labs/labs-1` folder has a package.json file in it. Install `nonsynchronous`
-([https://www.npmjs.com/package/nonsynchronous]) as a development dependency.
+The `./labs/labs-1` folder has a package.json file in it. Install
+[`nonsynchronous`](https://www.npmjs.com/package/nonsynchronous) as a development dependency.
 
 Run `npm test` in the `labs-1` folder to check that the task has been completed.
 
@@ -717,7 +717,7 @@ PATCH versions
 - Install `rfdc` at exactly version `1.1.3`
 
 Run `npm install` to install the development dependency required to validate this exercise,
-and then run npm test in the `./labs/labs-2` folder to check that the task has been completed:
+and then run `npm test` in the `./labs/labs-2` folder to check that the task has been completed:
 
 Solution:
 ```json

@@ -152,7 +152,7 @@ const format = require('./format')
 
 // https://nodejs.org/api/modules.html#requiremain
 // `require.main`: Is the `Module` object representing the entry script loaded when the Node.js
-// process launched. `module` variable references the `Module` object.
+// process launched. The `module` variable references the `Module` object.
 if (require.main === module) {
   const pino = require('pino')
   const logger = pino()
@@ -204,6 +204,7 @@ Let's convert our format.js file from CJS to ESM. First we'll need to rename so 
 `.mjs` extension:
 ```sh
 $ node -e "fs.renameSync('./format.js', './format.mjs')"
+
 $ node -p "fs.readdirSync('.').join('\t')"
 .gitignore      format.mjs      index.js        node_modules    package.json
 
@@ -281,11 +282,12 @@ however, ESM is JavaScript's built-in module system.
 
 ESM can be loaded into CJS using dynamic import, but this has implications.
 
-Let's convert the code of index.js to the following:
+Let's convert the code of `index.js` to the following:
 ```js
 // 07_NODES_MODULE_SYSTEMS/examples/my-package-mjs/index.js
 'use strict'
 
+// Is this file the entry script?
 if (require.main === module) {
   const pino = require('pino')
   const logger = pino()
@@ -301,7 +303,7 @@ if (require.main === module) {
   })
 } else {
   // In this branch we had to convert a synchronous function to use an asynchronous abstraction
-  // We could have used a callback but we used an `async` function, since dynamicc import returns a
+  // We could have used a callback but we used an `async` function, since dynamic import returns a
   // promise, we can `await` it
   let format = null
   const reverseAndUpper = async (str) => {
@@ -310,7 +312,6 @@ if (require.main === module) {
   }
   module.exports = reverseAndUpper
 }
-
 
 ```
 
@@ -323,8 +324,111 @@ $ npm start
 
 {"level":30,"time":1692117109603,"pid":26554,"hostname":"andres-msi","msg":"MY-PACKAGE STARTED"}
 
+$ node -p "require('./index')('hello')"
+Promise { <pending> }
+
+$ node -e "require('./index')('hello').then(console.log)"
+OLLEH
+
 ```
 
-In the upcoming chapter, we'll delve into asynchronous abstractions. Using dynamic import to
-integrate ESM into CJS altered our API. Now, `reverseAndUpper` returns a promise, which is a
-significant change and seems excessive for its purpose.
+Using dynamic import to integrate ESM into CJS altered our API. Now, `reverseAndUpper` returns a
+promise, which is a significant change and seems excessive for its purpose.
+
+In the upcoming chapter, we'll delve into asynchronous abstractions. 
+
+## Convert a CJS Package to an ESM Package
+We can opt-in to ESM-by-default by adding a `type` field to the `package.json` and setting it to
+`module`:
+```json
+// 07_NODES_MODULE_SYSTEMS/examples/my-package-cjs-to-mjs/package.json
+{
+  "name": "my-package",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  // Add the `type` field and set it to `module`
+  "type": "module",
+  "scripts": {
+    "start": "node index.js",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "lint":  "standard"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "pino": "^7.11.0"
+  },
+  "devDependencies": {
+    "standard": "^17.1.0"
+  }
+}
+
+```
+
+We can rename `format.mjs` to `format.js`:
+```sh
+$ node -e "fs.renameSync('./format.mjs', 'format.js')"
+
+```
+
+Now let's update the `index.js` file to:
+```js
+// 07_NODES_MODULE_SYSTEMS/examples/my-package-cjs-to-mjs/index.js
+// Importing the required modules and utilities
+import { realpath } from 'fs/promises' // Promise-based filesystem API from Node core
+import { fileURLToPath } from 'url' // Utility function to convert file:// URLs to paths
+import * as format from './format.js' // Import all named exports from `format.js` into a `format`
+                                      // object
+
+// Check if this module is the entry module executed by Node
+// `process.argv`:Is an array containing the command line arguments passed when the Node.js process was launched
+// `process.argv[0]`: Is the path to the Node.js executable itself
+// `process.argv[1]`: Is the path to the JavaScript file being executed
+const isMain = process.argv[1] &&
+  await realpath(fileURLToPath(import.meta.url)) ===  // Convert current module's URL to path and
+                                                      // normalize it
+  await realpath(process.argv[1]) // Normalize entry file's path
+
+// If this module is the main module being executed
+if (isMain) {
+  // Dynamically import pino using modern ESM's Top-Level Await
+  const { default: pino } = await import('pino')
+  const logger = pino()
+  logger.info(format.upper('my-package started')) // Use the "upper" method from format.js
+  process.stdin.resume()
+}
+
+// Default export of the module - a synchronous function
+export default (str) => {
+  return format.upper(str).split('').reverse().join('')
+}
+
+```
+
+Now we're able to run `npm start` but you also can now `import` our module (within another ESM
+module): 
+```sh
+$ npm start
+
+> my-package@1.0.0 start
+> node index.js
+
+{"level":30,"time":1692300939971,"pid":2713412,"hostname":"andres-msi","msg":"MY-PACKAGE STARTED"}
+
+# import
+$ echo "import uprev from './index.js'; console.log(uprev('HELLO'))" | node --input-type=module
+OLLEH
+
+```
+
+### Notes on the code
+1. In ESM, use `export default` to set a function as the main export, unlike CJS's `module.exports`.
+2. ESM exports must be declared at the top execution scope.
+3. ESM was primarily for browsers, so in Node.js we infer a module as the main one by comparing
+`process.argv[1]` and `import.meta.url`.
+4. ESM deals with URLs. In Node, `import.meta.url` holds a `file://` URL pointing to the current
+module's path.
+5. With dynamic imports, the default export must be reassigned, e.g., `{ default: pino }`.
+6. Unlike CJS, ESM mandates specifying the full filename (with extension) for imports.
+7. `import * as format` loads all named exports from `format.js` into a `format` object.

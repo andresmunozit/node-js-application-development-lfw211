@@ -432,3 +432,98 @@ module's path.
 5. With dynamic imports, the default export must be reassigned, e.g., `{ default: pino }`.
 6. Unlike CJS, ESM mandates specifying the full filename (with extension) for imports.
 7. `import * as format` loads all named exports from `format.js` into a `format` object.
+
+## Resolving a Module Path in CJS
+The `require` function has a method `require.resolve` that can be used to determine the absolute
+path for a required module.
+
+Let's create a file in `my-package` (`my-package-require-resolve`) and call it `resolve-demo.cjs`,
+with the following code:
+```js
+// 07_NODES_MODULE_SYSTEMS/examples/my-package-require-resolve/resolve-demo.cjs
+'use strict'
+
+console.log()
+// `console.group`: Increases indentation of subsequent lines by spaces for `groupIndentationlength`
+console.group('* package resolution')
+console.log(`require('pino')`, '\t', '=>', require.resolve('pino'))
+console.log(`require('standard')`, '\t', '=>', require.resolve('standard'))
+console.groupEnd()
+console.log()
+
+console.group('* directory resolution')
+console.log(`require('.')`, '\t\t', '=>', require.resolve('.'))
+console.log(`require('../my-package-require-resolve')`, '\t', '=>', require.resolve('../my-package-require-resolve'))
+console.groupEnd()
+console.log()
+
+console.group('* file resolution')
+console.log(`require('./format')`, '\t\t', '=>', require.resolve('./format'))
+console.log(`require('./format.js')`, '\t', '=>', require.resolve('./format.js'))
+console.groupEnd()
+console.log()
+
+console.group('* core APIs resolution')
+console.log(`require('fs')`, '\t', '=>', require.resolve('fs'))
+console.log(`require('util')`, '\t', '=>', require.resolve('util'))
+console.groupEnd()
+console.log()
+
+```
+
+If we execute `resolve-demo.cjs` with `node`, we'll see the resolved path for each of the require
+examples:
+```sh
+$ node resolve-demo.cjs
+
+* package resolution
+  require('pino')        => /absolute/path/my-package-require-resolve/node_modules/pino/pino.js
+  require('standard')    => /absolute/path/my-package-require-resolve/node_modules/standard/index.js
+
+* directory resolution
+  require('.')           => /absolute/path/my-package-require-resolve/index.js
+  require('../my-package-require-resolve')       => /absolute/path/my-package-require-resolve/index.js
+
+* file resolution
+  require('./format')            => /absolute/path/my-package-require-resolve/format.js
+  require('./format.js')         => /absolute/path/my-package-require-resolve/format.js
+
+* core APIs resolution
+  require('fs')          => fs
+  require('util')        => util
+
+```
+
+## Resolving a Module Path in ESM
+Since Node.js has implemented ESM with the ability to load packages, core modules and relative file
+paths, the ability to resolve an ESM module is important. Currently there is experimental support
+for an `import.meta.resolve` function that returns a promise that resolves to the relevant `file://`
+URL. Since this is experimental (behind the flag `--experimental-import-meta-resolve`), we'll
+discuss an alternative approach:
+```js
+import { pathToFileURL } from 'url'
+import { createRequire } from 'module'
+
+// `import.meta.url`: The absolute `file:` URL of the module
+// `createRequire: Takes a filename and use it to construct a require function`
+const require = createRequire(import.meta.url)
+
+console.log(
+    `import 'pino'`,
+    '=>',
+    // `pathToFileURL`: This function converts the path to an absolute, properly encoded File URL
+    pathToFileURL(require.resolve('pino')).toString()
+)
+
+```
+
+Let's run it:
+```sh
+$ node create-require-demo.js
+import 'pino' => file:///absolute/path/my-package-create-require/node_modules/pino/pino.js
+
+```
+
+This solution is partial because of recent Package API called **Conditional Exports**, which lets
+packages specify export files for different environments, like CJS and ESM. Using `require.resolve`
+in a package with an ESM entry point will still point to the CJS entry because require is a CJS API.

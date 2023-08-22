@@ -376,6 +376,8 @@ Now let's update the `index.js` file to:
 ```js
 // 07_NODES_MODULE_SYSTEMS/examples/my-package-cjs-to-mjs/index.js
 // Importing the required modules and utilities
+// In ESM (EcmaScript Modules), you don't need to use the await keyword for top-level imports
+// because the ESM system is designed to be asynchronous by default
 import { realpath } from 'fs/promises' // Promise-based filesystem API from Node core
 import { fileURLToPath } from 'url' // Utility function to convert file:// URLs to paths
 import * as format from './format.js' // Import all named exports from `format.js` into a `format`
@@ -392,7 +394,7 @@ const isMain = process.argv[1] &&
 
 // If this module is the main module being executed
 if (isMain) {
-  // Dynamically import pino using modern ESM's Top-Level Await
+  // `await` keyword is mandatory when loading modules conditionally
   const { default: pino } = await import('pino')
   const logger = pino()
   logger.info(format.upper('my-package started')) // Use the "upper" method from format.js
@@ -501,11 +503,12 @@ for an `import.meta.resolve` function that returns a promise that resolves to th
 URL. Since this is experimental (behind the flag `--experimental-import-meta-resolve`), we'll
 discuss an alternative approach:
 ```js
+// 07_NODES_MODULE_SYSTEMS/examples/my-package-create-require/create-require-demo.js
 import { pathToFileURL } from 'url'
 import { createRequire } from 'module'
 
 // `import.meta.url`: The absolute `file:` URL of the module
-// `createRequire: Takes a filename and use it to construct a require function`
+// `createRequire`: Takes a filename and use it to construct a require function
 const require = createRequire(import.meta.url)
 
 console.log(
@@ -525,5 +528,144 @@ import 'pino' => file:///absolute/path/my-package-create-require/node_modules/pi
 ```
 
 This solution is partial because of recent Package API called **Conditional Exports**, which lets
-packages specify export files for different environments, like CJS and ESM. Using `require.resolve`
-in a package with an ESM entry point will still point to the CJS entry because require is a CJS API.
+packages specify export files for different environments, like CJS and ESM. So if a packages
+`package.json` exports field defines an ESM entry point, the `require.resolve` function will still
+resolve to the CJS entry point because require is a CJS API.
+
+### Example: `tap`
+The `tap` module sets an exports field that points to a `.js` file by default, but a `.mjs` file
+when imported. Let's install tap `npm install tap`.
+
+Now let's edit `create-require-demo.js`:
+```js
+// 07_NODES_MODULE_SYSTEMS/examples/my-package-tap/create-require-demo.js
+import { pathToFileURL } from 'url'
+import { createRequire } from 'module'
+
+const require = createRequire(import.meta.url)
+
+console.log(
+    `import 'pino'`,
+    '=>',
+    pathToFileURL(require.resolve('pino')).toString()
+)
+
+console.log(
+    `import 'tap'`,
+    '=>',
+    // Since `require` is a CJS API, `require.resolve` function will still resolve to the CJS entry
+    // point
+    pathToFileURL(require.resolve('tap')).toString()
+)
+
+```
+
+```sh
+$ node  create-require-demo.js
+import 'pino' => file:///absolute/path/my-package-tap/node_modules/pino/pino.js
+# The `require.resolve('tap')` call returns the path to the default export (lib/tap.js) instead of
+# the ESM export (lib/tap.mjs).
+import 'tap' => file:///absolute/path/my-package-tap/node_modules/tap/lib/tap.js
+
+```
+
+Let's install: `npm install import-meta-resolve`, now let's create the file
+`import-meta-resolve-demo.js`:
+```js
+import { resolve } from 'import-meta-resolve'
+
+console.log(
+    `import 'pino'`,
+    '=>',
+    await resolve('pino', import.meta.url)
+)
+
+console.log(
+    `import 'tap'`,
+    '=>',
+    await resolve('tap', import.meta.url)
+)
+
+```
+
+```sh
+$ node import-meta-resolve-demo.js
+import 'pino' => file:///absolute/path/my-package-tap/node_modules/pino/pino.js
+import 'tap' => file:///absolute/path/my-package-tap/node_modules/tap/lib/tap.mjs
+# Now tap is resolved to its `.mjs` entry point
+
+```
+
+> Recall that ESM can load CJS but CJS cannot load ESM during initialization.
+
+## Labs
+### Lab 7.1 - Creating a Module
+The `./labs/labs-1` folder has an `index.js` file. Write a function that takes two numbers and adds
+them together, and then export that function from the `index.js` file.
+
+Run `npm test` to check whether `index.js` was correctly implemented. If it was the output
+should contain "passed!".
+
+By default, the `./labs/labs-1` folder is set up as a CJS project, but if desired, the
+`package.json` can be modified to convert to an ESM module (by either setting the type field to
+module or renaming `index.js` to `index.mjs` and setting the type field accordingly). The exercise
+can be completed either with the default CJS or with ESM or both.
+
+#### Solution
+We're not swtching index to an ESM module because that would break the test at
+`7_NODES_MODULE_SYSTEMS/labs/labs-2/test.js`, since `labs-2` depends on `labs-1`.
+
+```js
+// 07_NODES_MODULE_SYSTEMS/labs/labs-1/index.js
+module.exports = function(a, b) {
+    return a + b
+}
+
+```
+
+
+```sh
+$ npm test
+
+> labs-1@1.0.0 test
+> node test.mjs
+
+passed!
+
+```
+
+### Lab 7.2 - Loading a Module
+The `./labs/labs-2` is a sibling to `labs-1`. In the `index.js` file of `./labs/labs-2`, load the
+module that was created in the previous lab task and use that module to `console.log` the sum of 19
+and 23.
+
+The `./labs/labs-2` folder is set up as a CJS project. Recall that ESM can load CJS but CJS cannot
+load ESM during initialization. If the prior exercise was completed as an ESM module it cannot be
+synchronously loaded into a CJS module. Therefore if the prior exercise was completed in the
+form of an ESM module, this exercise must also be similarly converted to ESM.
+
+When `index.js` is executed with node it should output 42.
+
+Run npm test to check whether `index.js` was correctly implemented. If it was, the output
+should contain `"passed!"`:
+
+#### Solution
+```js
+// 07_NODES_MODULE_SYSTEMS/labs/labs-2/index.js
+'use strict'
+
+const add = require('../labs-1')
+
+console.log(add(19, 23))
+
+```
+
+```sh
+$ npm  test
+
+> labs-2@1.0.0 test
+> node test.js
+
+passed!
+
+```

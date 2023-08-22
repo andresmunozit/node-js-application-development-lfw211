@@ -1,6 +1,4 @@
 // Importing the required modules and utilities
-// In ESM (EcmaScript Modules), you don't need to use the await keyword for top-level imports
-// because the ESM system is designed to be asynchronous by default
 import { realpath } from 'fs/promises' // Promise-based filesystem API from Node core
 import { fileURLToPath } from 'url' // Utility function to convert file:// URLs to paths
 import * as format from './format.js' // Import all named exports from `format.js` into a `format`
@@ -17,7 +15,7 @@ const isMain = process.argv[1] &&
 
 // If this module is the main module being executed
 if (isMain) {
-  // `await` keyword is mandatory when loading modules conditionally
+  // Dynamically import pino using modern ESM's Top-Level Await
   const { default: pino } = await import('pino')
   const logger = pino()
   logger.info(format.upper('my-package started')) // Use the "upper" method from format.js

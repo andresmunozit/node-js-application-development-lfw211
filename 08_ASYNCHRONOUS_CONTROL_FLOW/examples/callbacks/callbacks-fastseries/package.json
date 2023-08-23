@@ -1,0 +1,16 @@
+{
+  "name": "callbacks-fastseries",
+  "version": "1.0.0",
+  "description": "",
+  "main": "callbacks.js",
+  "scripts": {
+    "start": "node callbacks.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "fastseries": "^2.0.0"
+  }
+}

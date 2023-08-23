@@ -128,8 +128,8 @@ $ npm start
 
 ## Detecting Main Module in CJS
 The `start` script in `package.json` executes `node index.js`. When a file is called with node, that
-is the entry point of a program. So currently `my-package` is behaving more like an application or
-service than a package.
+is the entry point of a program. So currently `my-package` is behaving more like an *application* or
+service than a *package*.
 
 If we `require` the `index.js` it will behave the same way:
 ```sh 
@@ -507,7 +507,7 @@ discuss an alternative approach:
 import { pathToFileURL } from 'url'
 import { createRequire } from 'module'
 
-// `import.meta.url`: The absolute `file:` URL of the module
+// `import.meta.url`: The absolute `file://` URL of the module
 // `createRequire`: Takes a filename and use it to construct a require function
 const require = createRequire(import.meta.url)
 

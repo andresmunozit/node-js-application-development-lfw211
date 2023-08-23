@@ -45,11 +45,11 @@ readFile(__filename, (err, contents) => {
 ```
 
 > Always having an error as the first parameter is convention in Node, this type of error-first
-callback is known as an Errback
+callback is known as an *Errback*
 
 Imagine a program with three variables, `smallFile`, `mediumFile`, `bigFile` each which holds the
 path of a file of a greater size than the last. If we want to log out the contents of each file
-based on the when that file has been loaded (chronological order), we can do something like the
+based on the chronological order in that file has been loaded, we can do something like the
 following:
 ```js
 // 08_ASYNCHRONOUS_CONTROL_FLOW/examples/callbacks/callbacks-2.js
@@ -144,6 +144,72 @@ operations be supported?
 In the following example, the goal is to print all the file contents out in the order they appear in
 the array:
 ```js
+// 08_ASYNCHRONOUS_CONTROL_FLOW/examples/callbacks/callbacks-5.js
+const { readFile } = require('fs')
 
+// The files array is only a mock, The idea is that files array could be any length
+const files = Array.from(Array(3)).fill(__filename)
+const data = []
+const print = (err, contents) => {
+  if (err) {
+    console.error(err)
+    return
+  }
+  console.log(contents.toString())
+}
+
+// self-recursive function, `read`, is created along with two variables, `count` and `index`.
+// `count`: amount of files to read
+// `index`: represent the `index` in the array of files
+let count = files.length
+let index = 0
+const read = (file) => {
+  readFile(file, (err, contents) => {
+    index += 1
+    if (err) print(err)
+    else data.push(contents)
+    // Once a file has been read and added to the data array, read is called again if index < count
+    if (index < count) read(files[index])
+    else print(null, Buffer.concat(data)) // Otherwise the data array is concatenated and printed out
+  })
+}
+
+read(files[index])
+
+```
+
+Callback-based serial execution can become quite complicated, let's use the `fastseries` package to
+implement the same serial execution:
+```js
+// 08_ASYNCHRONOUS_CONTROL_FLOW/examples/callbacks/callbacks-fastseries/callbacks.js
+const { readFile } = require('fs')
+const series = require('fastseries')()
+
+const files = Array.from(Array(3)).fill(__filename)
+
+// Define a function to handle the result of reading all files.
+const print  = (err, data) => {
+  if (err) {
+    console.error(err)
+    return
+  }
+  console.log(Buffer.concat(data).toString())
+}
+
+// Mapping the `files` array into an array of functions for `fastseries` to process
+const readers = files.map((file) => {
+  // The mapped functions have two parameters, `cb` is the callback function which we must call to
+  // let `fastseries` know that an asynchronous operation has finished, so that it can continue to
+  // processing the next function in the `readers` array
+  return (_, cb) => { // `_` is a placeholder since the first parameter is not used
+    readFile(file, (err, contents) => {
+      if (err) cb(err) // Pass error to callback if there's an error
+      else cb(null, contents) // Pass file contents to callback if read is successful
+    })
+  }
+})
+
+// Execute the array of functions (readers) serially, then call the 'print' callback at the end
+series(null, readers, null, print)
 
 ```

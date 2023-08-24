@@ -141,8 +141,8 @@ readFile(bigFile, (err, contents) => {
 So far we've used three asynchronous operations, but how would an unknown amount of asynchronous
 operations be supported?
 
-In the following example, the goal is to print all the file contents out in the order they appear in
-the array:
+In the following example, the goal is to print all the files contents out in the order they appear
+in the array:
 ```js
 // 08_ASYNCHRONOUS_CONTROL_FLOW/examples/callbacks/callbacks-5.js
 const { readFile } = require('fs')
@@ -187,7 +187,8 @@ const series = require('fastseries')()
 
 const files = Array.from(Array(3)).fill(__filename)
 
-// Define a function to handle the result of reading all files.
+// Define a function to handle the result of reading all files, `data` will contain an array of
+// results
 const print  = (err, data) => {
   if (err) {
     console.error(err)
@@ -211,5 +212,228 @@ const readers = files.map((file) => {
 
 // Execute the array of functions (readers) serially, then call the 'print' callback at the end
 series(null, readers, null, print)
+
+```
+
+If an error occurs, it's passed  to the `cb` function and `fastseries` will call `print` with error
+and then end. To be able to call `print` with an error but continue to read any other files in the
+array (as the previous examples) change the readers array to the following:
+```js
+// 08_ASYNCHRONOUS_CONTROL_FLOW/examples/callbacks/callbacks-fastseries-2/callbacks.js
+const { readFile } = require('fs')
+const series = require('fastseries')()
+
+const files = Array.from(Array(3)).fill(__filename)
+
+const print  = (err, data) => {
+  if (err) {
+    console.error(err)
+    return
+  }
+  console.log(Buffer.concat(data).toString())
+}
+
+const readers = files.map((file) => {
+  return (_, cb) => {
+    readFile(file, (err, contents) => {
+      // if (err) cb(err)
+      // Instead of calling `cb` with an error, log the error and return a new empty `Buffer`
+      if (err) {
+        print(err)
+        cb(null, Buffer.alloc(0))
+      }
+      else cb(null, contents)
+    })
+  }
+})
+
+series(null, readers, null, print)
+
+```
+
+## Promises
+A promise is an object that represents an asynchronous operation. It's either pending or settled,
+and if it is settled is either resolved or rejected. Treating an asynchronous operation as an
+object is a very useful abstraction, instead of passing a callback function that will be called when
+the asynchronous operation has finished, we can return a promise from a function instead.
+
+Let's consider the callback-based approach:
+```js
+// Pseudocode: callback approach
+function myAsyncOperation (cb) {
+  doSomethingAsynchronous((err, value) => { cb(err, value) })
+}
+
+myAsyncOperation(functionThatHandlesTheResult)
+
+```
+
+Now let's consider the same using the promise approach:
+```js
+// Pseudocode: promise approach
+function myAsyncOperation () {
+  // The function passed to the Promise constructor is called the `executor` function
+  return new Promise((resolve, reject) => {
+    doSomethingAsynchronous((err, value) => {
+      if (err) reject(err)
+      else resolve(value)
+    })
+  })
+}
+
+const promise = myAsyncOperation()
+// next up: do something with promise
+
+```
+
+In Node there is a nicer way to do this with the `promisify` function from the `util` module:
+```js
+// Pseudocode: promisify
+const { promisify } = require('util')
+const doSomething = promisify(doSomethingAsynchronous)
+function myAsyncOperation() {
+  return doSomething()
+}
+
+const promise = myAsyncOperation()
+// next up: do something with promise
+
+```
+
+The best way to handle promises is `async/await`, which will be discussed later. However, the
+methods to handle promise success or failure are `then` and `catch`:
+```js
+// Pseudocode: `then`, `catch`
+const promise = myAsyncOperation()
+
+// `then` and `catch` always return a promise so they can be chained
+promise
+  .then((value) => { console.log(value)})
+  .catch((err) => { console.error(err) })
+
+```
+
+Let's see a more concrete example:
+```js
+// 08_ASYNCHRONOUS_CONTROL_FLOW/examples/promises/promises.js
+const { promisify} = require('util')
+const { readFile } = require('fs')
+
+const readFileProm = promisify(readFile)
+const promise = readFileProm(__filename)
+
+promise.then((contents) => {
+    console.log(contents.toString())
+})
+
+promise.catch((err) => {
+    console.error(err)
+})
+
+```
+
+```txt
+$ node ./promises.js
+const { promisify} = require('util')
+const { readFile } = require('fs')
+
+const readFileProm = promisify(readFile)
+const promise = readFileProm(__filename)
+
+promise.then((contents) => {
+    console.log(contents.toString())
+})
+
+promise.catch((err) => {
+    console.error(err)
+})
+
+```
+
+When it comes to the `fs` module we don't actually have to use `promisify`, since it exports a
+promises object, with promised-based versions. The previous code would look like this:
+```js
+// 08_ASYNCHRONOUS_CONTROL_FLOW/examples/promises/promises-2.js
+const { readFile } = require('fs').promises
+
+readFile(__filename)
+    .then((contents) => {
+        console.log(contents.toString())
+    })
+    .catch(console.error)
+    // We pass `console.error` directly to catch instead of using an intermediate function
+
+```
+
+```txt
+$ node ./promises-2.js
+const { readFile } = require('fs').promises
+
+readFile(__filename)
+    .then((contents) => {
+        console.log(contents.toString())
+    })
+    .catch(console.error)
+    // We pass `console.error` directly to catch instead of using an intermediate function
+
+```
+
+If a value is returned from `then`, the `then` method will return a promise that resolves to that
+value:
+```js
+// 08_ASYNCHRONOUS_CONTROL_FLOW/examples/promises/promises-3.js
+const { readFile } = require('fs').promises
+
+readFile(__filename)
+    .then((contents) => {
+        return contents.toString()
+    })
+    .then((stringifiedContents) => {
+        console.log(stringifiedContents)
+    })
+    .catch(console.error)
+
+```
+
+```txt
+$ node ./promises-3.js 
+const { readFile } = require('fs').promises
+
+readFile(__filename)
+    .then((contents) => {
+        return contents.toString()
+    })
+    .then((stringifiedContents) => {
+        console.log(stringifiedContents)
+    })
+    .catch(console.error)
+
+```
+
+Even though an intermediate promise is created by the first `then`, we still only need the one
+`catch` handler as rejections are propagated.
+
+If a promise is returned from  a `then` handler, the `then` method will  return a promise, this
+allows for an easy serial execution:
+```js
+// 08_ASYNCHRONOUS_CONTROL_FLOW/examples/promises/promises-4.js
+const { readFile } = require('fs')
+const [ bigFile,  mediumFile, smallFile ] = Array.from(Array(3)).fill(__filename)
+
+const print = (contents) => {
+    console.log(contents.toString())
+}
+
+readFile(bigFile)
+    .then((contents) => {
+        print(contents)
+        return readFile(mediumFile) // The `then` method return a promise
+    })
+    .then((contents) => {
+        print(contents)
+        return readFile(smallFile)
+    })
+    .then(print)
+    .catch(console.error)
 
 ```

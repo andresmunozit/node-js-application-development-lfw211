@@ -417,7 +417,7 @@ If a promise is returned from  a `then` handler, the `then` method will  return 
 allows for an easy serial execution:
 ```js
 // 08_ASYNCHRONOUS_CONTROL_FLOW/examples/promises/promises-4.js
-const { readFile } = require('fs')
+const { readFile } = require('fs').promises
 const [ bigFile,  mediumFile, smallFile ] = Array.from(Array(3)).fill(__filename)
 
 const print = (contents) => {
@@ -435,5 +435,127 @@ readFile(bigFile)
     })
     .then(print)
     .catch(console.error)
+
+```
+
+```txt
+$ node promises-4.js
+const { readFile } = require('fs').promises
+const [ bigFile,  mediumFile, smallFile ] = Array.from(Array(3)).fill(__filename)
+
+const print = (contents) => {
+    console.log(contents.toString())
+}
+
+readFile(bigFile)
+    .then((contents) => {
+        print(contents)
+        return readFile(mediumFile) // The `then` method return a promise
+    })
+    .then((contents) => {
+        print(contents)
+        return readFile(smallFile)
+    })
+    .then(print)
+    .catch(console.error)
+const { readFile } = require('fs').promises
+const [ bigFile,  mediumFile, smallFile ] = Array.from(Array(3)).fill(__filename)
+
+const print = (contents) => {
+    console.log(contents.toString())
+}
+
+readFile(bigFile)
+    .then((contents) => {
+        print(contents)
+        return readFile(mediumFile) // The `then` method return a promise
+    })
+    .then((contents) => {
+        print(contents)
+        return readFile(smallFile)
+    })
+    .then(print)
+    .catch(console.error)
+const { readFile } = require('fs').promises
+const [ bigFile,  mediumFile, smallFile ] = Array.from(Array(3)).fill(__filename)
+
+const print = (contents) => {
+    console.log(contents.toString())
+}
+
+readFile(bigFile)
+    .then((contents) => {
+        print(contents)
+        return readFile(mediumFile) // The `then` method return a promise
+    })
+    .then((contents) => {
+        print(contents)
+        return readFile(smallFile)
+    })
+    .then(print)
+    .catch(console.error)
+
+```
+
+Let's consider the same scenario of the files array that we dealt with in the previous section.
+Here's how the same behavior could be achieved with promises:
+```js
+// 08_ASYNCHRONOUS_CONTROL_FLOW/examples/promises/promises-5.js
+const { readFile } = require('fs').promises
+const files = Array.from(Array(3)).fill(__filename)
+const data = []
+const print = (contents) => {
+  console.log(contents.toString())
+}
+let count = files.length
+let index = 0
+const read = (file) => {
+  return readFile(file).then((contents) => {
+    index += 1
+    data.push(contents)
+    // This is crucial to understand: since `read` returns a Promise, this means that our current
+    // `.then` handler is also returning a Promise. This chaining of Promises allows for serial
+    // processing of asynchronous tasks.
+    if (index < count) return read(files[index])
+
+    // The `data` array containing the contents of all the processed files, will be passed to the
+    // next `.then` handler if there's one attached to the Promise returned by the `read` function
+    return data
+  })
+}
+
+read(files[index]) // It receives the fist file in the `files` array
+  .then((data) => {
+    print(Buffer.concat(data))
+  })
+  .catch(console.error)
+
+```
+
+Depending on what we are trying to achieve there is a much simpler way to achieve the same effect
+without it being serially executed:
+```js
+// 08_ASYNCHRONOUS_CONTROL_FLOW/examples/promises/promises-6.js
+const { readFile } = require('fs').promises
+const files = Array.from(Array(3)).fill(__filename)
+const print = (data) => {
+    console.log(Buffer.concat(data).toString())
+}
+
+// Let's create an array of promises
+const readers = files.map((file) => readFile(file))
+
+// The `Promise.all` function takes an array of promises and returns a promise that resolves when
+// all promises have been resolved
+Promise.all(readers)
+    .then(print)
+    .catch(console.error)
+
+```
+
+However if one of the promises was to fail, `Promise.all` will reject, and any successfully resolved
+promises are ignored. If we want more tolerance of individual errors, `Promise.allSettled` can be:
+```js
+
 
 ```

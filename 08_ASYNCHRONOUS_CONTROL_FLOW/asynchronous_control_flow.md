@@ -378,7 +378,7 @@ readFile(__filename)
 
 ```
 
-If a value is returned from `then`, the `then` method will return a promise that resolves to that
+If a value is returned from `then`, the `then` method returns a promise that resolves to that
 value:
 ```js
 // 08_ASYNCHRONOUS_CONTROL_FLOW/examples/promises/promises-3.js
@@ -413,8 +413,8 @@ readFile(__filename)
 Even though an intermediate promise is created by the first `then`, we still only need the one
 `catch` handler as rejections are propagated.
 
-If a promise is returned from  a `then` handler, the `then` method will  return a promise, this
-allows for an easy serial execution:
+If a promise is returned from  a `then` handler, the `then` method returns promise, this allows for
+an easy serial execution:
 ```js
 // 08_ASYNCHRONOUS_CONTROL_FLOW/examples/promises/promises-4.js
 const { readFile } = require('fs').promises
@@ -427,7 +427,7 @@ const print = (contents) => {
 readFile(bigFile)
     .then((contents) => {
         print(contents)
-        return readFile(mediumFile) // The `then` method return a promise
+        return readFile(mediumFile) // The `then` method returns a promise
     })
     .then((contents) => {
         print(contents)
@@ -503,7 +503,7 @@ Here's how the same behavior could be achieved with promises:
 // 08_ASYNCHRONOUS_CONTROL_FLOW/examples/promises/promises-5.js
 const { readFile } = require('fs').promises
 const files = Array.from(Array(3)).fill(__filename)
-const data = []
+const data = [] // This array will be pupulated with the content of the files
 const print = (contents) => {
   console.log(contents.toString())
 }
@@ -554,8 +554,378 @@ Promise.all(readers)
 ```
 
 However if one of the promises was to fail, `Promise.all` will reject, and any successfully resolved
-promises are ignored. If we want more tolerance of individual errors, `Promise.allSettled` can be:
-```js
+promises are ignored.
 
+If we want more tolerance of individual errors, `Promise.allSettled` can be used in this way:
+```js
+// 08_ASYNCHRONOUS_CONTROL_FLOW/examples/promises/promises-7.js
+const { readFile } = require('fs').promises
+const files = [__filename, 'not a file', __filename]
+const print = (results) => {
+    results
+        // We filter all the rejected settled objects and pass the `reason` of each to
+        // `console.error`
+        .filter(({status}) => status === 'rejected')
+        .forEach(({reason}) => console.error(reason))
+
+    const data = results
+        // Then we filter all fulfilled settled objects and create an array of just the values using
+        // `map`
+        .filter((({status}) => status === 'fulfiled'))
+        .map((({value}) => value))
+    
+    const contents = Buffer.concat(data)
+    console.log(contents.toString())
+}
+
+const readers = files.map((file) => readFile(file))
+
+// The `Promise.allSettled` function returns an array of objects representing the settled status of
+// each promise.
+// Each object has a `status` property, which may be "rejected" of "fulfilled"
+// Objects with a "rejected" `status` will  ccontain a `reason` property with the associated error
+// Objects with a "fulfilled" `status` will have a `value` containing the resolved value
+Promise.allSettled(readers)
+    .then(print)
+    .catch(console.error)
+
+```
+
+```txt
+$ node promises-7.js
+[Error: ENOENT: no such file or directory, open 'not a file'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'not a file'
+}
+const { readFile } = require('fs').promises
+const files = [__filename, 'not a file', __filename]
+const print = (results) => {
+    results
+        // We filter all the rejected settled objects and pass the `reason` of each to
+        // `console.error`
+        .filter(({status}) => status === 'rejected')
+        .forEach(({reason}) => console.error(reason))
+
+    const data = results
+        // Then we filter all fulfilled settled objects and create an array of just the values using
+        // `map`
+        .filter((({status}) => status === 'fulfilled'))
+        .map((({value}) => value))
+    
+    const contents = Buffer.concat(data)
+    console.log(contents.toString())
+}
+
+const readers = files.map((file) => readFile(file))
+
+// The `Promise.allSettled` function returns an array of objects representing the settled status of
+// each promise.
+// Each object has a `status` property, which may be "rejected" of "fulfilled"
+// Objects with a "rejected" `status` will  ccontain a `reason` property with the associated error
+// Objects with a "fulfilled" `status` will have a `value` containing the resolved value
+Promise.allSettled(readers)
+    .then(print)
+    .catch(console.error)
+const { readFile } = require('fs').promises
+const files = [__filename, 'not a file', __filename]
+const print = (results) => {
+    results
+        // We filter all the rejected settled objects and pass the `reason` of each to
+        // `console.error`
+        .filter(({status}) => status === 'rejected')
+        .forEach(({reason}) => console.error(reason))
+
+    const data = results
+        // Then we filter all fulfilled settled objects and create an array of just the values using
+        // `map`
+        .filter((({status}) => status === 'fulfilled'))
+        .map((({value}) => value))
+    
+    const contents = Buffer.concat(data)
+    console.log(contents.toString())
+}
+
+const readers = files.map((file) => readFile(file))
+
+// The `Promise.allSettled` function returns an array of objects representing the settled status of
+// each promise.
+// Each object has a `status` property, which may be "rejected" of "fulfilled"
+// Objects with a "rejected" `status` will  ccontain a `reason` property with the associated error
+// Objects with a "fulfilled" `status` will have a `value` containing the resolved value
+Promise.allSettled(readers)
+    .then(print)
+    .catch(console.error)
+
+```
+
+If we want promises to un in parallel independently, we can either use `Promise.allSettled` or
+simple execute each of them with their own `then` and `catch` handlers:
+```js
+// 08_ASYNCHRONOUS_CONTROL_FLOW/examples/promises/promises-8.js
+const { readFile } = require('fs').promises
+const [bigFile, smallFile, mediumFile] = Array.from(Array(3)).fill(__filename)
+
+const print = (contents) => {
+    console.log(contents.toString())
+}
+
+readFile(bigFile).then(print).catch(console.error)
+readFile(mediumFile).then(print).catch(console.error)
+readFile(smallFile).then(print).catch(console.log)
+
+```
+
+```txt
+$ node promises-8.js 
+const { readFile } = require('fs').promises
+const [bigFile, smallFile, mediumFile] = Array.from(Array(3)).fill(__filename)
+
+const print = (contents) => {
+    console.log(contents.toString())
+}
+
+readFile(bigFile).then(print).catch(console.error)
+readFile(mediumFile).then(print).catch(console.error)
+readFile(smallFile).then(print).catch(console.log)
+
+const { readFile } = require('fs').promises
+const [bigFile, smallFile, mediumFile] = Array.from(Array(3)).fill(__filename)
+
+const print = (contents) => {
+    console.log(contents.toString())
+}
+
+readFile(bigFile).then(print).catch(console.error)
+readFile(mediumFile).then(print).catch(console.error)
+readFile(smallFile).then(print).catch(console.log)
+
+const { readFile } = require('fs').promises
+const [bigFile, smallFile, mediumFile] = Array.from(Array(3)).fill(__filename)
+
+const print = (contents) => {
+    console.log(contents.toString())
+}
+
+readFile(bigFile).then(print).catch(console.error)
+readFile(mediumFile).then(print).catch(console.error)
+readFile(smallFile).then(print).catch(console.log)
+
+```
+
+## Async/Await
+The keywords `async` and `await` allow from an approach that looks similar in style to synchronous
+code.
+```js
+// Declaring an async function
+async function(){}
+
+```
+
+An async function always return a promise that will resolve to what's returned inside of the async
+function body.
+
+The `await` keyword can only be inside of async functions. The `await` keyword will pause the
+execution of the async function until the awaited promise is resolved. The resolved value of that
+promise will be returned from an `await` expression.
+
+Here's an example of the same `readFile` operation from the previous section, using an async
+function:
+```js
+// 08_ASYNCHRONOUS_CONTROL_FLOW/examples/async-await/async-await.js
+const { readFile } = require('fs').promises
+
+async function run() {
+    // We use the `await` keyword on the promise value returned from `readFile`
+    // This execution is paused until `readFile` resolves
+    // When it resolves, the `contents` constant will be assigned the resolve value
+    const contents = await readFile(__filename)
+
+    // Then `contents` will be printed
+    console.log(contents.toString())
+}
+
+// Here we call the async function `run`
+// Async functions always return a promise, so we can chain a `catch` method to ensure any
+// rejections are handled, for example, in case `readFile` had an error 
+run().catch(console.error)
+
+```
+
+```txt
+$ node async-await.js
+const { readFile } = require('fs').promises
+
+async function run() {
+    // We use the `await` keyword on the promise value returned from `readFile`
+    // This execution is paused until `readFile` resolves
+    // When it resolves, the `contents` constant will be assigned the resolve value
+    const contents = await readFile(__filename)
+
+    // Then `contents` will be printed
+    console.log(contents.toString())
+}
+
+// Here we call the async function `run`
+// Async functions always returns a promise, so we can chain a `catch` method to ensure any
+// rejections are handled, for example, in case `readFile` had an error 
+run().catch(console.error)
+
+```
+
+The async/await syntax enables the cleanest approach to serial execution:
+```js
+// 08_ASYNCHRONOUS_CONTROL_FLOW/examples/async-await/async-await-2.js
+const { readFile } = require('fs').promises
+const print = (contents) => {
+    console.log(contents.toString())
+}
+const [bigFile, mediumFile, smallFile] = Array.from(Array(3)).fill(__filename)
+
+async function run() {
+    // For sequential execution we simply await those operations in order
+    print(await readFile(bigFile))
+    print(await readFile(mediumFile))
+    print(await readFile(smallFile))
+}
+
+run().catch(console.error)
+
+```
+
+```txt
+$ node async-await-2.js 
+const { readFile } = require('fs').promises
+const print = (contents) => {
+    console.log(contents.toString())
+}
+const [bigFile, mediumFile, smallFile] = Array.from(Array(3)).fill(__filename)
+
+async function run() {
+    // For sequential execution we simply await those operations in order
+    print(await readFile(bigFile))
+    print(await readFile(mediumFile))
+    print(await readFile(smallFile))
+}
+
+run().catch(console.error)
+
+const { readFile } = require('fs').promises
+const print = (contents) => {
+    console.log(contents.toString())
+}
+const [bigFile, mediumFile, smallFile] = Array.from(Array(3)).fill(__filename)
+
+async function run() {
+    // For sequential execution we simply await those operations in order
+    print(await readFile(bigFile))
+    print(await readFile(mediumFile))
+    print(await readFile(smallFile))
+}
+
+run().catch(console.error)
+
+const { readFile } = require('fs').promises
+const print = (contents) => {
+    console.log(contents.toString())
+}
+const [bigFile, mediumFile, smallFile] = Array.from(Array(3)).fill(__filename)
+
+async function run() {
+    // For sequential execution we simply await those operations in order
+    print(await readFile(bigFile))
+    print(await readFile(mediumFile))
+    print(await readFile(smallFile))
+}
+
+run().catch(console.error)
+
+```
+
+Concatenating files after they've been loaded is also trivial with async/await:
+```js
+// 08_ASYNCHRONOUS_CONTROL_FLOW/examples/async-await/async-await-3.js
+const { readFile } = require('fs').promises
+const print = (contents) => {
+    console.log(contents.toString())
+}
+const [bigFile, mediumFile, smallFile] = Array.from(Array(3)).fill(__filename)
+
+async function run() {
+    // In this example, we don't need to relay on `index` or `count` variables
+    const data = [
+        // We populate the data declarativelly instead of using `push`
+        // The async/await syntax allows for declarative asynchronous implementations
+        await readFile(bigFile),
+        await readFile(mediumFile),
+        await readFile(smallFile),
+    ]
+    print(Buffer.concat(data))
+}
+
+run().catch(console.error)
+
+```
+
+```txt
+$ node async-await-3.js 
+const { readFile } = require('fs').promises
+const print = (contents) => {
+    console.log(contents.toString())
+}
+const [bigFile, mediumFile, smallFile] = Array.from(Array(3)).fill(__filename)
+
+async function run() {
+    // In this example, we don't need to relay on `index` or `count` variables
+    const data = [
+        // We populate the data declarativelly instead of using `push`
+        // The async/await syntax allows for declarative asynchronous implementations
+        await readFile(bigFile),
+        await readFile(mediumFile),
+        await readFile(smallFile),
+    ]
+    print(Buffer.concat(data))
+}
+
+run().catch(console.error)
+const { readFile } = require('fs').promises
+const print = (contents) => {
+    console.log(contents.toString())
+}
+const [bigFile, mediumFile, smallFile] = Array.from(Array(3)).fill(__filename)
+
+async function run() {
+    // In this example, we don't need to relay on `index` or `count` variables
+    const data = [
+        // We populate the data declarativelly instead of using `push`
+        // The async/await syntax allows for declarative asynchronous implementations
+        await readFile(bigFile),
+        await readFile(mediumFile),
+        await readFile(smallFile),
+    ]
+    print(Buffer.concat(data))
+}
+
+run().catch(console.error)
+const { readFile } = require('fs').promises
+const print = (contents) => {
+    console.log(contents.toString())
+}
+const [bigFile, mediumFile, smallFile] = Array.from(Array(3)).fill(__filename)
+
+async function run() {
+    // In this example, we don't need to relay on `index` or `count` variables
+    const data = [
+        // We populate the data declarativelly instead of using `push`
+        // The async/await syntax allows for declarative asynchronous implementations
+        await readFile(bigFile),
+        await readFile(mediumFile),
+        await readFile(smallFile),
+    ]
+    print(Buffer.concat(data))
+}
+
+run().catch(console.error)
 
 ```

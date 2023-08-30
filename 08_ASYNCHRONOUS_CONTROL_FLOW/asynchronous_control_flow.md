@@ -929,3 +929,262 @@ async function run() {
 run().catch(console.error)
 
 ```
+
+What about the scenario with files array of unknown length?
+```js
+// 08_ASYNCHRONOUS_CONTROL_FLOW/examples/async-await/async-await-4.js
+const { readFile } = require('fs').promises
+
+const print = (contents) => {
+    console.log(contents.toString())
+}
+
+const files = Array.from(Array(3)).fill(__filename)
+
+async function run() {
+    const data = []
+    for (const file of files) {
+        // Here we use an await inside a loop, which is fitting for scenarios where operations
+        // must be sequentially called
+        data.push(await readFile(file))
+    }
+    print(Buffer.concat(data))
+}
+
+run().catch(console.error)
+
+```
+
+```txt
+$ node async-await-4.js
+const { readFile } = require('fs').promises
+
+const print = (contents) => {
+    console.log(contents.toString())
+}
+
+const files = Array.from(Array(3)).fill(__filename)
+
+async function run() {
+    const data = []
+    for (const file of files) {
+        // Here we use an await inside a loop, which it's fitting for scenarios where operations
+        // must be sequentially called
+        data.push(await readFile(file))
+    }
+    print(Buffer.concat(data))
+}
+
+run().catch(console.error)
+const { readFile } = require('fs').promises
+
+const print = (contents) => {
+    console.log(contents.toString())
+}
+
+const files = Array.from(Array(3)).fill(__filename)
+
+async function run() {
+    const data = []
+    for (const file of files) {
+        // Here we use an await inside a loop, which it's fitting for scenarios where operations
+        // must be sequentially called
+        data.push(await readFile(file))
+    }
+    print(Buffer.concat(data))
+}
+
+run().catch(console.error)
+const { readFile } = require('fs').promises
+
+const print = (contents) => {
+    console.log(contents.toString())
+}
+
+const files = Array.from(Array(3)).fill(__filename)
+
+async function run() {
+    const data = []
+    for (const file of files) {
+        // Here we use an await inside a loop, which it's fitting for scenarios where operations
+        // must be sequentially called
+        data.push(await readFile(file))
+    }
+    print(Buffer.concat(data))
+}
+
+run().catch(console.error)
+
+```
+
+For scenarios where the output has only to be ordered, but the order of asynchronous operations
+resolves doesn't matter, we can use `Promise.all`, and await the promised returned from it:
+```js
+// 08_ASYNCHRONOUS_CONTROL_FLOW/examples/async-await/async-await-5.js
+const { readFile } = require('fs').promises
+const files = Array.from(Array(3)).fill(__filename)
+const print = (contents) => {
+    console.log(contents.toString())
+}
+
+// This is a parallel execution with sequential order
+async function run() {
+    const readers = files.map((file) => {readFile(file)})
+    const data = await Promise.all(readers)
+    print(Buffer.concat(data))
+}
+
+run().catch(console.error)
+
+```
+
+```txt
+$ node async-await-5.js
+const { readFile } = require('fs').promises
+const files = Array.from(Array(3)).fill(__filename)
+const print = (contents) => {
+    console.log(contents.toString())
+}
+
+// This is a parallel execution with sequential order
+async function run() {
+    const readers = files.map((file) => readFile(file))
+    const data = await Promise.all(readers)
+    print(Buffer.concat(data))
+}
+
+run().catch(console.error)
+const { readFile } = require('fs').promises
+const files = Array.from(Array(3)).fill(__filename)
+const print = (contents) => {
+    console.log(contents.toString())
+}
+
+// This is a parallel execution with sequential order
+async function run() {
+    const readers = files.map((file) => readFile(file))
+    const data = await Promise.all(readers)
+    print(Buffer.concat(data))
+}
+
+run().catch(console.error)
+const { readFile } = require('fs').promises
+const files = Array.from(Array(3)).fill(__filename)
+const print = (contents) => {
+    console.log(contents.toString())
+}
+
+// This is a parallel execution with sequential order
+async function run() {
+    const readers = files.map((file) => readFile(file))
+    const data = await Promise.all(readers)
+    print(Buffer.concat(data))
+}
+
+run().catch(console.error)
+
+```
+
+As before, `Promise.all` will automatically reject if any of the promises fail. We can use
+`Promise.allSettled` to tolerate errors in favor of getting necessary data:
+```js
+// 08_ASYNCHRONOUS_CONTROL_FLOW/examples/async-await/async-await-6.js
+const { readFile } = require('fs').promises
+const files = [__filename, 'foo', __filename]
+const print = (contents) => {
+    console.log(contents.toString())
+}
+
+async function run() {
+    // The async/await syntax is highly specialized for serial control flow
+    const readers = files.map((file) => readFile(file))
+    const results = await Promise.allSettled(readers)
+    results
+        .filter(({status}) => status === 'rejected')
+        .forEach(({reason}) => console.error(reason))
+
+    const data = results
+        .filter(({status}) => status === 'fulfilled')
+        .map(({value}) => value)
+
+    print(Buffer.concat(data))
+}
+
+run().catch(console.error)
+
+```
+
+```txt
+$ node async-await-6.js
+[Error: ENOENT: no such file or directory, open 'foo'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'foo'
+}
+const { readFile } = require('fs').promises
+const files = [__filename, 'foo', __filename]
+const print = (contents) => {
+    console.log(contents.toString())
+}
+
+async function run() {
+    // The async/await syntax is highly specialized for serial control flow
+    const readers = files.map((file) => readFile(file))
+    const results = await Promise.allSettled(readers)
+    results
+        .filter(({status}) => status === 'rejected')
+        .forEach(({reason}) => console.error(reason))
+
+    const data = results
+        .filter(({status}) => status === 'fulfilled')
+        .map(({value}) => value)
+
+    print(Buffer.concat(data))
+}
+
+run().catch(console.error)
+const { readFile } = require('fs').promises
+const files = [__filename, 'foo', __filename]
+const print = (contents) => {
+    console.log(contents.toString())
+}
+
+async function run() {
+    // The async/await syntax is highly specialized for serial control flow
+    const readers = files.map((file) => readFile(file))
+    const results = await Promise.allSettled(readers)
+    results
+        .filter(({status}) => status === 'rejected')
+        .forEach(({reason}) => console.error(reason))
+
+    const data = results
+        .filter(({status}) => status === 'fulfilled')
+        .map(({value}) => value)
+
+    print(Buffer.concat(data))
+}
+
+run().catch(console.error)
+
+```
+
+Let's remind ourselves of the callback-based parallel execution example:
+```js
+// 08_ASYNCHRONOUS_CONTROL_FLOW/examples/async-await/async-await-7.js
+const {readFile} = require('fs').promises
+const [bigFile, mediumFile, smallFile] = Array.from(Array(3)).fill(__filename)
+
+const print = (err, contents) => {
+    if (err) {
+        console.error(err)
+        return
+    }
+    console.log(contents.toString())
+}
+
+readFile(bigFile, print)
+readFile(mediumFile, print)
+readFile(smallFile, print)
+
+```

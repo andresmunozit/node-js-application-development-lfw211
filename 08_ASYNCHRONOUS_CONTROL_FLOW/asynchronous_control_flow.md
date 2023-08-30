@@ -1172,8 +1172,9 @@ run().catch(console.error)
 Let's remind ourselves of the callback-based parallel execution example:
 ```js
 // 08_ASYNCHRONOUS_CONTROL_FLOW/examples/async-await/async-await-7.js
-const {readFile} = require('fs').promises
-const [bigFile, mediumFile, smallFile] = Array.from(Array(3)).fill(__filename)
+// We don't need the `promises` version of `readFile`, but the callback-based version
+const { readFile } = require('fs')
+const [ bigFile, mediumFile, smallFile ] = Array.from(Array(3)).fill(__filename)
 
 const print = (err, contents) => {
     if (err) {
@@ -1183,8 +1184,119 @@ const print = (err, contents) => {
     console.log(contents.toString())
 }
 
+// The files are printed as soon as they are loaded
 readFile(bigFile, print)
 readFile(mediumFile, print)
 readFile(smallFile, print)
+
+```
+
+```txt
+$ node async-await-7.js 
+// We don't need the `promises` version of `readFile`,  but the callback-based version
+const { readFile } = require('fs')
+const [ bigFile, mediumFile, smallFile ] = Array.from(Array(3)).fill(__filename)
+
+const print = (err, contents) => ...
+
+# The contents of the file gets printed three times
+
+```
+
+To get the exact parallel operation behavior, use a `then` handler and then await the promises later
+on:
+```js
+// 08_ASYNCHRONOUS_CONTROL_FLOW/examples/async-await/async-await-8.js
+const { readFile } = require('fs').promises
+const [ bigFile, mediumFile, smallFile ] = Array.from(Array(3)).fill(__filename)
+
+const print = (contents) => {
+    console.log(contents.toString())
+}
+
+async function run() {
+    const big = readFile(bigFile)
+    const medium = readFile(mediumFile)
+    const small = readFile(smallFile)
+
+    // `then` attaches the `print` function as a callback to each promise
+    // When a file is read, the `print` function will be called with the file's content, this
+    // will ensure the contents are printed out chronologically
+    big.then(print)
+    medium.then(print)
+    small.then(print)
+
+    // Now await the promises. Note that the order of awaiting wouldn't affect the order of the
+    // callback execution defined with `then`.
+    await small
+    await medium
+    await big
+}
+
+run().catch(console.error)
+
+```
+
+```txt
+$ node async-await-8.js
+const { readFile } = require('fs').promises
+const [ bigFile, mediumFile, smallFile ] = Array.from(Array(3)).fill(__filename)
+
+const print = (contents) => {
+    console.log(contents.toString())
+}
+
+# The file content get's printed three times
+
+```
+
+If the complexity for parallel execution grows it may be better to o use a callback based approach
+and wrap it at a higher level into a promise, so that can be used in an async/await function:
+```js
+// 08_ASYNCHRONOUS_CONTROL_FLOW/examples/async-await/async-await-9.js
+const { promisify } = require('util')
+const { readFile } = require('fs')
+const [ bigFile, mediumFile, smallFile ] = Array.from(Array(3)).fill(__filename)
+
+// Here we've wrapped the callback-based parallel execution approach into a function 
+// that accepts a callback (cb) and we've passed that whole function into promisify.
+const read = promisify((cb) => {
+    let index = 0
+    const print = (err, contents) => {
+        index += 1
+        // Note that the `cb` function will be called only when the three files are read
+        if (err) {
+            console.error(err)
+            if (index === 3) cb()
+            return
+        }
+        console.log(contents.toString())
+        if (index === 3) cb()
+    }
+    readFile(bigFile, print)
+    readFile(mediumFile, print)
+    readFile(smallFile, print)
+})
+
+async function run() {
+    await read()
+    // This means that our read function returns a promise that resolves 
+    // when all three parallel operations are done, after which the run 
+    // function logs out:
+    console.log('finished!')
+}
+
+run().catch(console.error)
+
+```
+
+```txt
+$ node async-await-9.js
+const { promisify } = require('util')
+const { readFile } = require('fs')
+const [ bigFile, mediumFile, smallFile ] = Array.from(Array(3)).fill(__filename)
+
+# The contents of the file gets printed three times
+finished!
 
 ```

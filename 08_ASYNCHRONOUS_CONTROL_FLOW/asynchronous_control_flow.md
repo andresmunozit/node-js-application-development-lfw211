@@ -1300,3 +1300,171 @@ const [ bigFile, mediumFile, smallFile ] = Array.from(Array(3)).fill(__filename)
 finished!
 
 ```
+
+## Canceling Asynchronous Operations
+Asynchronous operations sometimes don't need to continue once started. Instead of delaying their
+start, a better method is to initiate and cancel if necessary. Node core has adopted the
+standardized `AbortController` and `AbortSignal` Web APIs to cancel such tasks efficiently across
+various async contexts.
+
+The `AbortController` and `AbortSignal` are primarily used in Node to address the fact that
+promise-based APIs return promises, though they can also be applied to callback-based APIs.
+
+To use a very simple example, here's a traditional `JavaScript` timeout:
+```js
+// 08_ASYNCHRONOUS_CONTROL_FLOW/examples/cancelling-async-ops/cancelling.js
+const timeout = setTimeout(() => {
+    // This code will output nothing
+    console.log('will not be logged')
+}, 1000)
+
+// The timeout is cleared before its callback can be called
+setImmediate(() => { clearTimeout(timeout) })
+
+```
+```txt
+$ node cancelling.js
+
+```
+
+How to achieve the same behavior with a promise-based timeout:
+```js
+// 08_ASYNCHRONOUS_CONTROL_FLOW/examples/cancelling-async-ops/cancelling-2.js
+import { setTimeout } from 'timers/promises'
+
+// The imported `setTimeout` function doesn't need a callback, instead it returns a promise that
+// resolves after the specified delay. Optionally, the promise resolves to the value of the second
+// argument
+const timeout = setTimeout(1000, 'will be logged')
+
+setImmediate(() => {
+    // Since `timeout` variable is a promise and not a timeout identifier, `clearTimeout` ignores it
+    // so the asynchronous timeout operation never gets cancelled
+    clearTimeout(timeout)
+})
+
+// Then we log the resolved promise
+console.log(await timeout)
+
+```
+```txt
+$ node cancelling-2.mjs
+will be logged
+
+```
+
+Some asynchronous operations have unique cancelation methods that don't easily fit into a
+standardized promise-based API. For instance, functions might return objects with methods like
+"cancel", "abort", or "destroy" to stop the ongoing operation. Simple native promises can't handle
+these varied methods. Using an `AbortSignal` provides a consistent way to cancel these promisified
+operations:
+```js
+// 08_ASYNCHRONOUS_CONTROL_FLOW/examples/cancelling-async-ops/cancelling-3.mjs
+import { setTimeout } from 'timers/promises'
+
+// Create an instance of `AbortController`
+const ac = new AbortController()
+
+// Extract the `AbortSignal` instance from the controller
+const { signal } = ac
+
+// Set a timeout and pass the `signal` to it via the options argument, which allows for cancellation
+// The API will monitor for an abort event on this `signal`
+const timeout = setTimeout(1000, 'will NOT be logged', { signal })
+
+setImmediate(() => {
+    // Call the `abort` method to trigger the abort event on the `signal`
+    // This cancels the timeout and rejects the promise with an `AbortError`
+    ac.abort()
+})
+
+// Handle the timeout promise. If aborted, it will throw an `AbortError`
+try {
+    console.log(await timeout)
+} catch (err) {
+    // Only rethrow errors that are not due to the abort operation
+    if (err.code != 'ABORT_ERR') throw err
+}
+
+```
+```txt
+$ node cancelling.js
+
+```
+
+Many parts of the Node core API accept a signal option, including `fs`, `net`, `http`, `events`,
+`child_process`, `readline` and `stream`.
+
+## Labs
+### Lab 8.1 - Parallel Execution
+In the labs-1 folder, the `parallel.js` file contains the following:
+```js
+// 08_ASYNCHRONOUS_CONTROL_FLOW/labs/labs-1/parallel.js
+const print = (err, contents) => { 
+  if (err) console.error(err)
+  else console.log(contents )
+}
+
+const opA = (cb) => {
+  setTimeout(() => {
+    cb(null, 'A')
+  }, 500)
+}
+
+const opB = (cb) => {
+  setTimeout(() => {
+    cb(null, 'B')
+  }, 250)
+}
+
+const opC = (cb) => {
+  setTimeout(() => {
+    cb(null, 'C')
+  }, 125)
+}
+
+```
+The `opA` function must be called before `opB`, and `opB` must be called before `opC`.
+
+Call functions in `parallel.js` in such a way that C then B then A is printed out.
+
+### Solution
+```js
+const print = (err, contents) => { 
+  if (err) console.error(err)
+  else console.log(contents )
+}
+
+const opA = (cb) => {
+  setTimeout(() => {
+    cb(null, 'A')
+  }, 500)
+}
+
+const opB = (cb) => {
+  setTimeout(() => {
+    cb(null, 'B')
+  }, 250)
+}
+
+const opC = (cb) => {
+  setTimeout(() => {
+    cb(null, 'C')
+  }, 125)
+}
+
+// These operations run in parallel. The order in which the letters (C, B, A) are printed reflects 
+// the durations set in the timers.
+// The call order stated in the exercise was respected.
+opA(print)
+opB(print)
+opC(print)
+
+```
+```txt
+$ node parallel-solution.js 
+C
+B
+A
+
+```

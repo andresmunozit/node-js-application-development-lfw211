@@ -1310,11 +1310,10 @@ various async contexts.
 The `AbortController` and `AbortSignal` are primarily used in Node to address the fact that
 promise-based APIs return promises, though they can also be applied to callback-based APIs.
 
-To use a very simple example, here's a traditional `JavaScript` timeout:
+To use a very simple example, here's a traditional callback-based timeout:
 ```js
 // 08_ASYNCHRONOUS_CONTROL_FLOW/examples/cancelling-async-ops/cancelling.js
 const timeout = setTimeout(() => {
-    // This code will output nothing
     console.log('will not be logged')
 }, 1000)
 
@@ -1329,7 +1328,7 @@ $ node cancelling.js
 
 How to achieve the same behavior with a promise-based timeout:
 ```js
-// 08_ASYNCHRONOUS_CONTROL_FLOW/examples/cancelling-async-ops/cancelling-2.js
+// 08_ASYNCHRONOUS_CONTROL_FLOW/examples/cancelling-async-ops/cancelling-2.mjs
 import { setTimeout } from 'timers/promises'
 
 // The imported `setTimeout` function doesn't need a callback, instead it returns a promise that
@@ -1378,7 +1377,7 @@ setImmediate(() => {
     ac.abort()
 })
 
-// Handle the timeout promise. If aborted, it will throw an `AbortError`
+// Handle the `timeout` promise. If aborted, it will throw an `AbortError`
 try {
     console.log(await timeout)
 } catch (err) {
@@ -1430,6 +1429,7 @@ Call functions in `parallel.js` in such a way that C then B then A is printed ou
 
 ### Solution
 ```js
+// 08_ASYNCHRONOUS_CONTROL_FLOW/labs/labs-1/parallel-solution.js
 const print = (err, contents) => { 
   if (err) console.error(err)
   else console.log(contents )
@@ -1454,7 +1454,7 @@ const opC = (cb) => {
 }
 
 // These operations run in parallel. The order in which the letters (C, B, A) are printed reflects 
-// the durations set in the timers.
+// the durations set on each timer
 // The call order stated in the exercise was respected.
 opA(print)
 opB(print)
@@ -1468,3 +1468,161 @@ B
 A
 
 ```
+
+### Lab 8.2 - Serial Execution
+In the `labs-2` folder, the `serial.js` file contains the following:
+```js
+// 08_ASYNCHRONOUS_CONTROL_FLOW/labs/labs-2/serial.js
+'use strict'
+const { promisify } = require('util')
+
+const print = (err, contents) => { 
+  if (err) console.error(err)
+  else console.log(contents) 
+}
+
+const opA = (cb) => {
+  setTimeout(() => {
+    cb(null, 'A')
+  }, 500)
+}
+
+const opB = (cb) => {
+  setTimeout(() => {
+    cb(null, 'B')
+  }, 250)
+}
+
+const opC = (cb) => {
+  setTimeout(() => {
+    cb(null, 'C')
+  }, 125)
+}
+
+```
+
+Call the functions in such a way that A then B then C is printed out.
+Remember `promisify` can be used to convert a callback API to a promise-based API.
+
+The `promisify` function is included at the top of `serial.js` in case a promise based solution
+is preferred.
+
+
+### Solution #1
+```js
+'use strict'
+const { promisify } = require('util')
+
+const print = (err, contents) => { 
+  if (err) console.error(err)
+  else console.log(contents) 
+}
+
+// Use `promisify` to be able of using `then` and `catch` for managing the serial execution
+const opA = promisify((cb) => {
+  setTimeout(() => {
+    cb(null, 'A')
+  }, 500)
+})
+
+const opB = promisify((cb) => {
+  setTimeout(() => {
+    cb(null, 'B')
+  }, 250)
+})
+
+const opC = promisify((cb) => {
+  setTimeout(() => {
+    cb(null, 'C')
+  }, 125)
+})
+
+// Chain the asynchronous operations using `then` and returning a promise for the next operation
+opA()
+    .then((err, contents) => {
+        print(err, contents)
+        return opB()
+    })
+    .then((err, contents) => {
+        print(err, contents)
+        return opC()
+    })
+    .then((err, contents) => {
+        print(err, contents)
+    })
+    .catch(console.error)
+
+
+```
+```txt
+$ node serial-solution-1.js
+A
+B
+C
+
+```
+
+## Solution #2
+```js
+// 08_ASYNCHRONOUS_CONTROL_FLOW/labs/labs-2/serial-solution-2.js
+'use strict'
+const { promisify } = require('util')
+
+const print = (err, contents) => { 
+  if (err) console.error(err)
+  else console.log(contents) 
+}
+
+// Use `promisify` to return a promise and be able to use the async/await syntax
+const opA = promisify((cb) => {
+  setTimeout(() => {
+    cb(null, 'A')
+  }, 500)
+})
+
+const opB = promisify((cb) => {
+  setTimeout(() => {
+    cb(null, 'B')
+  }, 250)
+})
+
+const opC = promisify((cb) => {
+  setTimeout(() => {
+    cb(null, 'C')
+  }, 125)
+})
+
+// The promises will resolve with the `contents` value
+async function run() {
+    print(null, await opA())
+    print(null, await opB())
+    print(null, await opC())
+}
+
+run()
+
+```
+
+```txt
+$ node serial-solution-2.js
+A
+B
+C
+
+```
+
+## Knowledge Check
+1. What is a callback?
+- A. A function that is called when an asynchronous operation completes [x]
+- B. A function that is called before an asynchronous operation completes
+- C. An object that is returned when an asynchronous operation completes
+
+2. What method can be used to handle a promise rejection?
+- A. reject
+- B. error
+- C. catch [x]
+
+3. What does an async function always return?
+- A. Whatever value is returned from the function
+- B. Nothing
+- C. A promise of the returned value [x]

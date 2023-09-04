@@ -1,0 +1,5 @@
+const { EventEmitter } = require('events')
+const ee = new EventEmitter()
+ee.on('my-event', () => {console.log('1st')})
+ee.on('my-event', () => {console.log('2st')})
+ee.emit('my-event')

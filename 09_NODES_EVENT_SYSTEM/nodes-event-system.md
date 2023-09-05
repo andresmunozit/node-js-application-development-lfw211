@@ -266,3 +266,242 @@ another event
 another event
 
 ```
+
+## The error Event
+If an `error` event is emitted on an event emitter and no listener is registered for the error
+event, it will throw an exception:
+```js
+// 09_NODES_EVENT_SYSTEM/examples/event-emitter-9.js
+const {EventEmitter} = require('events')
+const ee = new EventEmitter()
+process.stdin.resume() // keep process alive
+ee.emit('error', new Error('oh oh'))
+
+```
+```
+$ node event-emitter-9.js 
+node:events:491
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: oh oh
+    at Object.<anonymous> (/.../event-emitter-9.js:4:18)
+    at Module._compile (node:internal/modules/cjs/loader:1254:14)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1308:10)
+    at Module.load (node:internal/modules/cjs/loader:1117:32)
+...
+
+```
+
+Let's register a listener for the `error` event:
+```js
+// 09_NODES_EVENT_SYSTEM/examples/event-emitter-10.js
+const { EventEmitter } = require('events')
+const ee = new EventEmitter()
+
+process.stdin.resume() // keep process alive
+
+ee.on('error', (err) => {
+    console.log('got error:', err.message)
+})
+
+ee.emit('error', new Error('oh oh'))
+
+```
+```txt
+$ node event-emitter-10.js 
+got error: oh oh
+
+```
+
+## Promise-Based Single Use Listener and AbortController
+We previously discussed about `AbortController` as a means of canceling asynchronous operations. It
+can also be used to cancel promisified event listeners. The `events.once` function returns a promise
+that resolves once an even has been fired:
+```js
+// Pseudocode
+import someEventEmitter from './somewhere.js'
+import { once } from 'events'
+
+// The execution will pause on this line, until the registered event fires
+// If the event never fires, execution will never pass this point
+await once(someEventEmitter, 'my-event')  // Top Level Await
+
+```
+
+This makes `event.once` useful in async/await or ESM Top Level Await scenarios, but we need an
+escape-hatch for scenarios where an event migth not fire, as in the following example:
+```js
+// Example
+import { once, EventEmitter } from 'events'
+
+// `uneventful` event emitter doesn't emit any events at all
+const uneventful = new EventEmitter()
+
+// `once` will be awaiting for the `ping` event undefinitelly
+await once(uneventful, 'ping')
+
+// The folllowing code will never be reached
+console.log('pinged!')
+
+```
+
+Suppose there's a possibility that an event might be emitted, but it could either not occur at all
+or take longer than what's acceptable. With an `AbortController`, we can cancel the promisified
+listener after certain delay like so:
+```js
+// 09_NODES_EVENT_SYSTEM/examples/event-emitter-11.mjs
+import { once, EventEmitter } from 'events'
+import { setTimeout } from 'timers/promises'
+
+// `uneventful` event emitter never emits `ping`
+const uneventful = new EventEmitter()
+
+const ac = new AbortController()
+const { signal } = ac
+
+// After 500 milliseconds `ac.abort` is called, this causes the `signal` instance passed to
+// `events.once` to reject the returned promise with an `AbortError`
+setTimeout(500).then(() => ac.abort())
+
+try {
+    await once(uneventful, 'ping', { signal })
+    console.log('pinged!')
+} catch(err) {
+    // ignore abort errors
+    if (err.code !== 'ABORT_ERR') throw err
+    console.log('canceled')
+}
+
+```
+```txt
+$ node event-emitter-11.mjs
+canceled
+
+```
+
+To make this scenario more realistic, let's vary the event listener's response time. Sometimes
+it'll respond in less than 500 milliseconds, while at other times it might take longer:
+```js
+// 09_NODES_EVENT_SYSTEM/examples/event-emitter-12.mjs
+import { once, EventEmitter } from 'events'
+import { setTimeout } from 'timers/promises'
+
+const sometimesLaggy = new EventEmitter()
+
+const ac = new AbortController()
+const { signal } = ac
+
+// The second argument can be used to specify the resolved value of the timeout promise 
+setTimeout(2000 * Math.random(), null, { signal }).then(() => {
+    // The "ping" event will be emitted if the random timeout is roughly under 500 milliseconds,
+    // as `ac.abort` gets triggered around that mark, as you will see bellow
+    sometimesLaggy.emit('ping')
+})
+
+// `ac.abort` is used to cancel both the `event.once` promise, and the first `timers/promises`
+// `setTimeout` promise afer 500 milliseconds
+setTimeout(500).then(() => ac.abort())
+
+try {
+    await once(sometimesLaggy, 'ping', {signal})
+    console.log('Pinged')
+} catch(err) {
+    // ignore abort errors
+    if (err.code !== 'ABORT_ERR') throw err
+    console.log('canceled')
+}
+
+```
+
+About three out of four times, this code will log out `cancelled`:
+```txt
+$ node event-emitter-12.mjs
+canceled
+node:timers/promises:47
+    reject(new AbortError(undefined, { cause: signal?.reason }));
+           ^
+
+AbortError: The operation was aborted
+    at Timeout.cancelListenerHandler (node:timers/promises:47:12)
+    at [nodejs.internal.kHybridDispatch] (node:internal/event_target:735:20)
+...
+
+
+$ node event-emitter-12.mjs
+Pinged
+
+$ node event-emitter-12.mjs
+canceled
+node:timers/promises:47
+    reject(new AbortError(undefined, { cause: signal?.reason }));
+           ^
+
+AbortError: The operation was aborted
+    at Timeout.cancelListenerHandler (node:timers/promises:47:12)
+    at [nodejs.internal.kHybridDispatch] (node:internal/event_target:735:20)
+...
+
+
+$ node event-emitter-12.mjs
+canceled
+node:timers/promises:47
+    reject(new AbortError(undefined, { cause: signal?.reason }));
+           ^
+
+AbortError: The operation was aborted
+    at Timeout.cancelListenerHandler (node:timers/promises:47:12)
+    at [nodejs.internal.kHybridDispatch] (node:internal/event_target:735:20)
+...
+
+```
+
+Let's add a `catch` for handling the `setTimeout` promise rejection caused by `ac.abort()`:
+```mjs
+// 09_NODES_EVENT_SYSTEM/examples/event-emitter-13.mjs
+import { once, EventEmitter } from 'events'
+import { setTimeout } from 'timers/promises'
+
+const sometimesLaggy = new EventEmitter()
+
+const ac = new AbortController()
+const { signal } = ac
+
+setTimeout(2000 * Math.random(), null, { signal })
+    .then(() => {
+        sometimesLaggy.emit('ping')
+    })
+    .catch((err) => {if (err.code !== 'ABORT_ERR') throw err})  // This will handle the async
+                                                                // operation cancellation caused by
+                                                                // `ac.abort` call
+
+setTimeout(500).then(() => ac.abort())
+    
+try {
+    await once(sometimesLaggy, 'ping', { signal })
+    console.log('Pinged')
+} catch(err) {
+    if (err.code !== 'ABORT_ERR') throw err
+    console.log('canceled')
+}
+
+```
+```txt
+$ node event-emitter-13.mjs
+Pinged
+
+$ node event-emitter-13.mjs
+canceled
+
+$ node event-emitter-13.mjs
+Pinged
+
+$ node event-emitter-13.mjs
+canceled
+
+$ node event-emitter-13.mjs
+canceled
+
+```
+
+Now the error is handled.

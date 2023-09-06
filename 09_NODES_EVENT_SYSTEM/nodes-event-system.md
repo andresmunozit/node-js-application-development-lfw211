@@ -505,3 +505,146 @@ canceled
 ```
 
 Now the error is handled.
+
+## Labs
+### Lab 9.1 - Single Use Listener
+The `./labs/labs-1/index.js` file contains the following code:
+```js
+'use strict'
+const assert = require('assert')
+const { EventEmitter } = require('events')
+
+const ee = new EventEmitter()
+let count = 0
+setInterval(() => {
+    ee.emit('tick')
+}, 100)
+
+function listener () {
+    count++
+    setTimeout(() => {
+        assert.equal(count, 1)
+        assert.equal(this, ee)
+        console.log('passed!')
+    }, 250)
+}
+
+```
+Register the listener function with the ee event emitter in such a way that the listener
+function is only called a single time. If implemented correctly, the program should print out
+`passed!`.
+
+#### Solution
+```js
+// 09_NODES_EVENT_SYSTEM/labs/labs-1/index-solved.js
+'use strict'
+const assert = require('assert')
+const { EventEmitter } = require('events')
+
+const ee = new EventEmitter()
+let count = 0
+setInterval(() => {
+  ee.emit('tick')
+}, 100)
+
+function listener () {
+  count++
+  setTimeout(() => {
+    assert.equal(count, 1)
+    assert.equal(this, ee)
+    console.log('passed!')
+  }, 250)
+}
+
+// Listener function will be called once
+ee.once('tick', listener)
+
+```
+```txt
+$ node index-solved.js 
+passed!
+
+```
+
+## Lab 9.2 - Implementing a Timeout Error
+The `./labs/labs-2` folder has an `index.js` file containing the following:
+```js
+// 09_NODES_EVENT_SYSTEM/labs/labs-2/index.js
+'use strict'
+const { EventEmitter } = require('events')
+process.nextTick(console.log, 'passed!')
+const ee = new EventEmitter()
+ee.emit('error', Error('timeout'))
+
+```
+
+Currently the process crashes:
+```txt
+$ node index.js 
+node:events:491
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: timeout
+    at Object.<anonymous> (/home/andres/code/andresmunozit/node-js-application-development-lfw211/09_NODES_EVENT_SYSTEM/labs/labs-2/index.js:8:18)
+    at Module._compile (node:internal/modules/cjs/loader:1254:14)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1308:10)
+    at Module.load (node:internal/modules/cjs/loader:1117:32)
+    at Module._load (node:internal/modules/cjs/loader:958:12)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:81:12)
+    at node:internal/main/run_main_module:23:47
+Emitted 'error' event at:
+    at Object.<anonymous> (/home/andres/code/andresmunozit/node-js-application-development-lfw211/09_NODES_EVENT_SYSTEM/labs/labs-2/index.js:8:4)
+    at Module._compile (node:internal/modules/cjs/loader:1254:14)
+    [... lines matching original stack trace ...]
+    at node:internal/main/run_main_module:23:47
+
+Node.js v18.15.0
+
+```
+Without removing any of the existing code, and without using a try/catch block add some code which
+stops the process from crashing. When implemented correctly the process should output `passed!`.
+
+#### Solution
+```js
+'use strict'
+const { EventEmitter } = require('events')
+
+process.nextTick(console.log, 'passed!')
+
+const ee = new EventEmitter()
+
+// Let's add a listener to handle the `error` event
+ee.on('error', (err) => { if (err.message !== 'timeout') throw err })
+
+ee.emit('error', Error('timeout'))
+
+```
+```txt
+$ node index-solved.js 
+passed!
+
+$ node index-solved.js
+passed!
+
+```
+
+## Knowledge Check
+### Question 9.1
+What `EventEmitter` method can be used to listen for an event and then immediately remove the
+listener after the event fires?
+A. off
+B. once [x]
+C. when
+
+### Question 9.2
+Is the emit method synchronous or asynchronous?
+A. Synchronous - event is emitted in current tick [x]
+B. Asynchronous - event is emitted in future tick
+C. Neither/Both, it uses a queue
+
+### Question 9.3
+Which event name, when emitted, has a special behavior?
+A. end
+B. error [x]
+C. exception

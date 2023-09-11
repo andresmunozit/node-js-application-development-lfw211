@@ -295,57 +295,53 @@ with the `new` keyword. This is a common pattern in legacy code so it's worth un
 All functions have a `prototype` property.
 ```js
 // 05_KEY_JAVASCRIPT_CONCEPTS/examples/prototypal-inheritance/constructor-functions-approach.js
-// This is a constructor function.
-// It is a convention to use PascalCase for functions that are intended to be called with `new`
+// Define a constructor function named "Wolf." By convention, constructor function names start with
+// an uppercase letter.
 function Wolf(name) {
-    this.name = name
+    this.name = name;
 }
 
-// Every function always has a preexisting `prototype` object
-// In this case we're overwriting the previous `Wolf.prototype`
+// Adding a method "howl" to the Wolf prototype. This means all instances of Wolf will have access
+// to this method.
 Wolf.prototype.howl = function() {
-    console.log(this.name + ": awoooooooo")
-}
+    console.log(this.name + ": awoooooooo");
+};
 
+// Define a constructor function named "Dog" which leverages the Wolf constructor to initialize
+// `this.name`.
 function Dog(name) {
-    // The `call` function sets `this` dynamically
-    // Using the `call` method on a function allows the `this` object of the function being called
-    // to be set via the first argument passed to call
-    // All subsequent arguments passed to call become the function arguments, so the name argument
-    // passed to Wolf is "Rufus the dog", when we instantiate `rufus` later
-    // `Wolf.call` sets `this.name`, to the second argument `name` plus a string 
-    Wolf.call(this, name + ' the dog')
+    // Using `Wolf.call(this, name + ' the dog')` to call the Wolf constructor with the context set
+    // to the current Dog instance (`this`), essentially inheriting Wolf's properties and behaviors.
+    Wolf.call(this, name + ' the dog');
 }
 
-// `inherit` utility function uses an empty constructor function to create a new object with a
-// prototype pointing, in this case, to `Wolf.prototype`.
+// Utility function to facilitate inheritance by creating a new object with the specified prototype
+// object.
 function inherit(proto) {
     function ChainLink(){}
-    ChainLink.prototype = proto
-    return new ChainLink()
+    ChainLink.prototype = proto;
+    return new ChainLink();
 }
 
-// `Dog.prototype` is explicitly assigned, overwriting the previous `Dog.prototype` object
-Dog.prototype = inherit(Wolf.prototype)
+// Setting Dog's prototype to a new object which inherits from Wolf's prototype, establishing a
+// prototype chain.
+Dog.prototype = inherit(Wolf.prototype);
 
+// Adding a method "woof" to the Dog prototype.
 Dog.prototype.woof = function() {
-    console.log(this.name + ": woof")
-}
+    console.log(this.name + ": woof");
+};
 
-// The new `rufus` object is created
-// The new object is also the `this` object within the Dog constructor function
-// The new object is also referenced via the `this` object inside the Wolf constructor
-// function
-// The `Wolf` constructor sets this.name to "Rufus the dog", which means that ultimately
-// `rufus.name` is set to "Rufus the dog"
-const rufus = new Dog('Rufus')
+// Creating a new Dog instance with the name "Rufus."
+const rufus = new Dog('Rufus');
 
-rufus.woof() // prints "Rufus the dog: woof"
-rufus.howl() // prints "Rufus the dog: awoooooooo"
+// Demonstrating that the `rufus` object can access methods from both the Dog and Wolf prototypes.
+rufus.woof(); // prints "Rufus the dog: woof"
+rufus.howl(); // prints "Rufus the dog: awoooooooo"
 
-// This will setup the same prototype chain as in the functional Prototypal inheritance example:
-console.log(Object.getPrototypeOf(rufus) === Dog.prototype)
-console.log(Object.getPrototypeOf(Dog.prototype) === Wolf.prototype)
+// Validating the prototype chain established through inheritance.
+console.log(Object.getPrototypeOf(rufus) === Dog.prototype); // true
+console.log(Object.getPrototypeOf(Dog.prototype) === Wolf.prototype); // true
 
 ```
 
@@ -357,22 +353,28 @@ In JS runtimes that support **EcmaScript 5+**, `Object.create` function can be u
 effect
 
 ```js
+// Define a constructor function named "Wolf" to create a Wolf object with a specified name.
 function Wolf(name) {
-  this.name = name
+  this.name = name;
 }
 
+// Define a constructor function named "Dog" which calls the Wolf constructor, 
+// augmenting the name parameter with the string ' the dog' before passing it.
 function Dog(name) {
-  Wolf.call(this, name + ' the dog')
+  Wolf.call(this, name + ' the dog');
 }
 
-// We use the prototype of `Wolf` for specifying prototypal inheritance
-Dog.prototype = Object.create(Wolf.prototype, {
-  name: {value: "Rufus"}
-})
+// Set up prototypal inheritance: we create a new object which is a prototype of Wolf, 
+// and assign it to be the prototype of Dog, ensuring Dog instances will have access 
+// to properties and methods defined on Wolf.prototype.
+Dog.prototype = Object.create(Wolf.prototype);
 
+// Add a method "woof" to Dog's prototype which logs a message including the Dog 
+// instance's name.
 Dog.prototype.woof = function() {
-  console.log(this.name + ": woof")
-}
+  console.log(this.name + ": woof");
+};
+
 
 ```
 
@@ -412,8 +414,8 @@ console.log(Object.getPrototypeOf(Dog.prototype) === Wolf.prototype) // true
  
 ```
 
-In contemporary Node.js, `util.inherits` uses the EcmaScript 2015 (ES6) method
-`Object.setPrototypeOf` sunder the hood. It's essentially executing the following:
+In the modern version of Node.js, util.inherits is powered by the ES6 (2015 version of JavaScript)
+method called `Object.setPrototypeOf`. It's essentially executing the following:
 ```js
 // 05_KEY_JAVASCRIPT_CONCEPTS/examples/prototypal-inheritance/constructor-functions-set-prototype-of.js
 const util = require('util')
@@ -434,8 +436,8 @@ Dog.prototype.woof = function () {
   console.log(this.name + ': woof')
 }
 
-// `Object.setPrototypeOfObject.setPrototypeOf(o, proto)` Sets the prototype of a specified object o
-// to object proto or null. Returns the object o.
+// `Object.setPrototypeOfObject.setPrototypeOf(o, proto)` Sets the `prototype` of a specified object
+// `o` to object `proto` or null. Returns the object o.
 Object.setPrototypeOf(Dog.prototype, Wolf.prototype)
 
 const rufus = new Dog('Rufus')

@@ -48,8 +48,8 @@ Node.js v18.15.0
 ```
 
 When the program crahes, it displays a stack trace from the error object we created using the
-`throw` keyword. The `Error` constructor is native to JavaScript, shows a message and automatically
-creates a stack trace.
+`throw` keyword. The `Error` constructor is native to JavaScript. It shows a message and
+automatically creates a stack trace.
 
 While it's recommended to throw an object instantiated from `Error` (or a constructor that inherits
 from `Error`), it's possible to throw any value:
@@ -193,7 +193,7 @@ For more information about native errors see
 
 ## Custom Errors
 Native errors are limited and can never fit all application needs. We will explore two different
-ways (out of several) to communicate error cases: *subclassing* native errors constructors and use a
+ways (out of several) to communicate error cases: *subclassing* native error constructors and use a
 *code* property. These aren't mutually exclusive.
 
 ### Using a `code` property
@@ -210,7 +210,8 @@ function doTask(amount) {
         const err = Error('amount must be even')
         err.code = 'ERR_MUST_BE_EVEN'
         throw err
-    } 
+    }
+    return amount / 2
 }
 
 doTask(3)
@@ -443,9 +444,125 @@ try {
 ```txt
 $ node handling-errors-10.js 
 cannot be odd
+
 $ node handling-errors-10.js
 wrong type
+
 $ node handling-errors-10.js
 out of range
+
+```
+
+However, checking the instance of an error is flawed, specially when checking against navtive
+constructors. Check the following change to the code:
+```js
+// 10_HANDLING_ERRORS/examples/handling-errors-11.js
+class OddError extends Error {
+    constructor(varName = '') {
+        super(varName + ' must be even')
+        this.code = 'ERR_MUST_BE_EVEN'
+    }
+    get name() { return 'Odd Error [' + this.code + ']' }
+}
+
+function doTask(amount) {
+    if (typeof amount !== 'number') throw new TypeError('amount must be a number')
+    if (amount <= 0) throw new RangeError('amount must be greater than zero')
+    if (amount % 2) throw new OddError('amount')
+    return amount / 2
+}
+
+try {
+    const result = doTask(4) // Now we use an even input
+    
+    // The returned value is a number, not a function so the following call will result in an error
+    // object which, is an instance of TypeError
+    result()
+    console.log('result', result)
+} catch(err) {
+    if (err instanceof TypeError) {
+        console.log('wrong type') // So the output will be "wrong type"
+    } else if (err instanceof RangeError) {
+        console.log('out of range')
+    } else if (err.code === 'ERR_MUST_BE_EVEN') { // Now we test the `code` instead of the insance
+        console.log('cannot be odd')
+    } else {
+        console.error('Unknown error', err)
+    }
+}
+
+```
+```txt
+$ node handling-errors-11.js 
+wrong type
+
+```
+
+To mitigate this is better to use *duck-typing* in JavaScript. This means looking for certain
+qualities to determine what an object is - e.g. if it looks like a duck, and quacks like a duck it's
+a duck. To apply duck-typing in error handling, we can follow what Node core APIs do and use a
+`code` property:
+```js
+// 10_HANDLING_ERRORS/examples/handling-errors-12.js
+class OddError extends Error {
+    constructor(varName = '') {
+        super(varName + ' must be even')
+        this.code = 'ERR_MUST_BE_EVEN'
+    }
+    get name() { return 'Odd Error [' + this.code + ']' }
+}
+
+// Let's create a small utility function for adding a code to an error object
+function codify(err, code) {
+    err.code = code
+    return err
+}
+
+
+// Now let's add a code to the `TypeError` and the `RangeError` objects
+function doTask(amount) {
+    if (typeof amount !== 'number') throw codify(
+        new TypeError('amount must be a number'),
+        'ERR_AMOUNT_MUST_BE_NUMBER'
+    )
+    if (amount <= 0) throw codify(
+        new RangeError('amount must be greater than zero'),
+        'ERR_AMOUNT_MUST_EXCEED_ZERO'
+    )
+    if (amount % 2) throw new OddError('amount')
+    return amount / 2
+}
+
+try {
+    const result = doTask(4)
+    result()
+    console.log('result', result)
+// Now we can update the catch block to check the code propery instead of using an instance check:
+} catch(err) {
+    if (err.code === 'ERR_AMOUNT_MUST_BE_NUMBER') {
+        console.log('wrong type')
+    } else if (err.code === 'ERR_AMOUNT_MUST_EXCEED_ZERO') {
+        console.log('out of range')
+    } else if (err.code === 'ERR_MUST_BE_EVEN') {
+        console.log('cannot be odd')
+    } else {
+        console.error('Unknown error', err)
+    }
+}
+
+```
+
+Now erroneously calling `result` as a function will cause the error checks to reach the final `else`
+branch in the `catch` block:
+```txt
+$ node handling-errors-12.js 
+Unknown error TypeError: result is not a function
+    at Object.<anonymous> (/.../handling-errors-12.js:32:5)
+    at Module._compile (node:internal/modules/cjs/loader:1254:14)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1308:10)
+    at Module.load (node:internal/modules/cjs/loader:1117:32)
+    at Module._load (node:internal/modules/cjs/loader:958:12)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:81:12)
+    at node:internal/main/run_main_module:23:47
 
 ```

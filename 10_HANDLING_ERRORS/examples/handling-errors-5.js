@@ -8,7 +8,8 @@ function doTask(amount) {
         const err = Error('amount must be even')
         err.code = 'ERR_MUST_BE_EVEN'
         throw err
-    } 
+    }
+    return amount / 2
 }
 
 doTask(3)

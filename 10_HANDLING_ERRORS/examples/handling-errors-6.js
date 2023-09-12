@@ -3,7 +3,7 @@ class OddError extends Error {
     // For example, invoking `new OddError('amount')` will result in an error message: "amount must
     // be even".
     constructor(varName = '') {
-        // Calls the parent class (Error) constructor with acustom message.
+        // Calls the parent class (Error) constructor with a custom message.
         super(varName + ' must be even');
     }
     

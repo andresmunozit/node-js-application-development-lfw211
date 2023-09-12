@@ -246,7 +246,7 @@ class OddError extends Error {
     // For example, invoking `new OddError('amount')` will result in an error message: "amount must
     // be even".
     constructor(varName = '') {
-        // Calls the parent class (Error) constructor with acustom message.
+        // Calls the parent class (Error) constructor with a custom message.
         super(varName + ' must be even');
     }
     
@@ -453,7 +453,7 @@ out of range
 
 ```
 
-However, checking the instance of an error is flawed, specially when checking against navtive
+However, checking the instance of an error is flawed, specially when checking against native
 constructors. Check the following change to the code:
 ```js
 // 10_HANDLING_ERRORS/examples/handling-errors-11.js
@@ -476,7 +476,7 @@ try {
     const result = doTask(4) // Now we use an even input
     
     // The returned value is a number, not a function so the following call will result in an error
-    // object which, is an instance of TypeError
+    // object which, is an instance of `TypeError`
     result()
     console.log('result', result)
 } catch(err) {
@@ -484,7 +484,8 @@ try {
         console.log('wrong type') // So the output will be "wrong type"
     } else if (err instanceof RangeError) {
         console.log('out of range')
-    } else if (err.code === 'ERR_MUST_BE_EVEN') { // Now we test the `code` instead of the insance
+     // In this case, we test the `code` instead of using the `instanceof` keyword
+    } else if (err.code === 'ERR_MUST_BE_EVEN') {
         console.log('cannot be odd')
     } else {
         console.error('Unknown error', err)
@@ -566,3 +567,199 @@ Unknown error TypeError: result is not a function
     at node:internal/main/run_main_module:23:47
 
 ```
+
+## Rejections
+In Chapter 8, we studied various asynchronous syntax and patterns including callback patterns,
+Promise abstractions, and async/await syntax. We mainly focused on errors in synchronous code, where
+"throw" indicates an exception, representing a synchronous error. Conversely, a promise rejection
+represents an asynchronous error. Essentially, *exceptions are for synchronous* errors while
+*rejections handle asynchronous errors*.
+
+Let's modify `doTask` to perform asynchronous work using a callback or promise-based API, including
+async/await, and have it return a promise that either resolves to a value or rejects due to an
+error:
+```js
+// 10_HANDLING_ERRORS/examples/handling-errors-13.js
+class OddError extends Error {
+    constructor(varName = '') {
+        super(varName + ' must be even')
+        this.code = 'ERR_MUST_BE_EVEN'
+    }
+    get name() { return 'Odd Error [' + this.code + ']' }
+}
+
+async function doTask(amount) {
+    // The returned promise is created using the `Promise` constructor.
+    // The function passed to `Promise` is called the *tether* function, it takes two arguments,
+    // `resolve` and `reject` which are also functions.
+    return new Promise((resolve, reject) => {
+        if (typeof amount !== 'number') {
+            // We call `reject` when the operation is a failure
+            reject(new TypeError('amount must be a number'))
+            return
+        } else if (amount >= 0) {
+            // We're passing an error into `reject` for each of our error cases so that the returned
+            // promise will reject when `doTask` is passed invalid input.
+            reject(new ReferenceError('amount must be greater than zero'))
+            return
+        } else if (amount % 2) {
+            reject(new OddError('amount'))
+            return
+        }
+        // We call `resolve` when the operation is a success
+        resolve(amount / 2)
+    })
+}
+
+// Calling doTask with an invalid input, as in the above, will result in an unhandled rejection
+doTask(3)
+
+```
+
+```txt
+$ node handling-errors-13.js
+/.../handling-errors-13.js:24
+            reject(new OddError('amount'))
+                   ^
+
+Odd Error [ERR_MUST_BE_EVEN]: amount must be even
+    at /.../handling-errors-13.js:24:20
+    at new Promise (<anonymous>)
+    at doTask (/.../handling-errors-13.js:13:12)
+    at Object.<anonymous> (/.../handling-errors-13.js:33:1)
+    at Module._compile (node:internal/modules/cjs/loader:1254:14)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1308:10)
+    at Module.load (node:internal/modules/cjs/loader:1117:32)
+    at Module._load (node:internal/modules/cjs/loader:958:12)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:81:12)
+    at node:internal/main/run_main_module:23:47 {
+  code: 'ERR_MUST_BE_EVEN'
+}
+
+Node.js v18.15.0
+
+```
+
+The rejection is unhandled because promises must use the `catch` method to catch rejections and so
+far we haven't attached a catch handler. Let's modify the `doTask` call to the following:
+```js
+// 10_HANDLING_ERRORS/examples/handling-errors-14.js
+class OddError extends Error {
+    constructor(varName = '') {
+        super(varName + ' must be even')
+        this.code = 'ERR_MUST_BE_EVEN'
+    }
+    get name() { return 'Odd Error [' + this.code + ']' }
+}
+
+async function doTask(amount) {
+    return new Promise((resolve, reject) => {
+        if (typeof amount !== 'number') {
+            reject(new TypeError('amount must be a number'))
+            return
+        } else if (amount <= 0) {
+            reject(new ReferenceError('amount must be greater than zero'))
+            return
+        } else if (amount % 2) {
+            reject(new OddError('amount'))
+            return
+        }
+        resolve(amount / 2)
+    })
+}
+
+doTask(3) // We use an odd amount
+    // We add a `then` handler that will handle success
+    .then((result) => {
+        console.log('result', result)
+    })
+    // We add a `then` handler that will handle rejection
+    .catch((err) => {
+        if (err.code === 'ERR_AMOUNT_MUST_BE_NUMBER') {
+            console.error('wrong type')
+        } else if (err.code === 'ERR_AMOUNT_MUST_EXCEED_ZERO') {
+            console.error('out of range')
+        } else if (err.code === 'ERR_MUST_BE_EVEN') {
+            console.error('cannot be odd')
+        } else {
+            console.error('Unknown error', err)
+        }
+    })
+
+```
+
+Now this functionality is equivalent to the synchonous non-promise based from of our code, the
+errors are handled in the same way:
+```txt
+$ node handling-errors-14.js
+cannot be odd
+
+# Now we call `doTask` with 4, in this case the function execution is successful so the `then`
+# handler is invoked
+$ node handling-errors-14.js
+result 2
+
+```
+
+If you use `throw` inside a promise handler, it creates a rejection, not an exception. Then, the
+`then` or `catch` handlers generate a new promise that also rejects due to the `throw` in the
+handler.
+
+Lets `throw` inside the then handler:
+```js
+// 10_HANDLING_ERRORS/examples/handling-errors-15.js
+class OddError extends Error {
+    constructor(varName = '') {
+        super(varName + ' must be even')
+        this.code = 'ERR_MUST_BE_EVEN'
+    }
+    get name() { return 'Odd Error [' + this.code + ']' }
+}
+
+async function doTask(amount) {
+    return new Promise((resolve, reject) => {
+        if (typeof amount !== 'number') {
+            reject(new TypeError('amount must be a number'))
+            return
+        } else if (amount <= 0) {
+            reject(new ReferenceError('amount must be greater than zero'))
+            return
+        } else if (amount % 2) {
+            reject(new OddError('amount'))
+            return
+        }
+        resolve(amount / 2)
+    })
+}
+
+doTask(4) // Note that this time we use a valid input
+    .then((result) => {
+        throw Error('spanner in the works')
+    })
+    .catch((err) => {
+        if (err.code === 'ERR_AMOUNT_MUST_BE_NUMBER') {
+            console.error('wrong type')
+        } else if (err.code === 'ERR_AMOUNT_MUST_EXCEED_ZERO') {
+            console.error('out of range')
+        } else if (err.code === 'ERR_MUST_BE_EVEN') {
+            console.error('cannot be odd')
+        } else {
+            console.error('Unknown error', err)
+        }
+    })
+
+```
+
+```txt
+$ node handling-errors-15.js
+Unknown error Error: spanner in the works
+    at /.../handling-errors-15.js:27:15
+
+```
+
+Even though `doTask(4)` does not cause a promise rejection, the `throw` in the `then` handler does.
+So the `catch` handler on the promise returned from `then` will reach the final else branch and
+output unknown error.
+
+Remember, since functions can call other functions, a `throw` in any function in the call stack that
+starts in a `then` handler will create a rejection, not the usual exception.

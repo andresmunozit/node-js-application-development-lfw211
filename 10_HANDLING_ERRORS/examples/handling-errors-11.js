@@ -17,7 +17,7 @@ try {
     const result = doTask(4) // Now we use an even input
     
     // The returned value is a number, not a function so the following call will result in an error
-    // object which, is an instance of TypeError
+    // object which, is an instance of `TypeError`
     result()
     console.log('result', result)
 } catch(err) {
@@ -25,7 +25,8 @@ try {
         console.log('wrong type') // So the output will be "wrong"
     } else if (err instanceof RangeError) {
         console.log('out of range')
-    } else if (err.code === 'ERR_MUST_BE_EVEN') { // Now we test the `code` instead of the insance
+    // In this case, we test the `code` instead of using the `instanceof` keyword
+    } else if (err.code === 'ERR_MUST_BE_EVEN') {
         console.log('cannot be odd')
     } else {
         console.error('Unknown error', err)

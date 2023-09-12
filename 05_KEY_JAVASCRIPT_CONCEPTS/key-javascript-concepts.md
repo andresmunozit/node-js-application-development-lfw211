@@ -414,7 +414,7 @@ console.log(Object.getPrototypeOf(Dog.prototype) === Wolf.prototype) // true
  
 ```
 
-In the modern version of Node.js, util.inherits is powered by the ES6 (2015 version of JavaScript)
+In the modern version of Node.js, `util.inherits` is powered by the ES6 (2015 version of JavaScript)
 method called `Object.setPrototypeOf`. It's essentially executing the following:
 ```js
 // 05_KEY_JAVASCRIPT_CONCEPTS/examples/prototypal-inheritance/constructor-functions-set-prototype-of.js

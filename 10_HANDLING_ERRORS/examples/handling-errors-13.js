@@ -17,8 +17,8 @@ async function doTask(amount) {
             return
         } else if (amount <= 0) {
             // We're passing an error into `reject` for each of our error cases so that the returned
-            // promise will reject when `doTask` is passed invalid input.
-            reject(new ReferenceError('amount must be greater than zero'))
+            // promise will reject when `doTask` is passed an invalid input.
+            reject(new RangeError('amount must be greater than zero'))
             return
         } else if (amount % 2) {
             reject(new OddError('amount'))

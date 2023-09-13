@@ -15,6 +15,13 @@ provide a clear error message to guide corrections.
 
 
 ## Throwing
+In a Node.js program, when an error is thrown using the throw statement, the normal flow of the
+program is interrupted, and the runtime starts looking for a `catch` block to handle the error.
+If no `catch` block is found in the current execution stack (call stack), then the program crashes,
+and Node.js prints the error stack trace to the console. If a `catch` block is found, the error is
+passed to it, and the program continues from there, potentially recovering from the error and
+continuing its normal operation.
+
 Tipically an *input* error is dealt by using the `throw` keyword:
 ```js
 // 10_HANDLING_ERRORS/examples/handling-errors-1.js
@@ -599,8 +606,8 @@ async function doTask(amount) {
             return
         } else if (amount >= 0) {
             // We're passing an error into `reject` for each of our error cases so that the returned
-            // promise will reject when `doTask` is passed invalid input.
-            reject(new ReferenceError('amount must be greater than zero'))
+            // promise will reject when `doTask` is passed an invalid input.
+            reject(new RangeError('amount must be greater than zero'))
             return
         } else if (amount % 2) {
             reject(new OddError('amount'))
@@ -658,7 +665,7 @@ async function doTask(amount) {
             reject(new TypeError('amount must be a number'))
             return
         } else if (amount <= 0) {
-            reject(new ReferenceError('amount must be greater than zero'))
+            reject(new RangeError('amount must be greater than zero'))
             return
         } else if (amount % 2) {
             reject(new OddError('amount'))
@@ -722,7 +729,7 @@ async function doTask(amount) {
             reject(new TypeError('amount must be a number'))
             return
         } else if (amount <= 0) {
-            reject(new ReferenceError('amount must be greater than zero'))
+            reject(new RangeError('amount must be greater than zero'))
             return
         } else if (amount % 2) {
             reject(new OddError('amount'))
@@ -763,3 +770,119 @@ output unknown error.
 
 Remember, since functions can call other functions, a `throw` in any function in the call stack that
 starts in a `then` handler will create a rejection, not the usual exception.
+
+## Async Try/Catch
+We can use `try/catch` on asynchronous promise-based APIs instead of using `then` and `catch`
+handlers. 
+
+Let's create an async function named `run` and reintroduce the same `try/catch` pattern that was
+used when calling the synchronous form of `doTask()`:
+```js
+// 10_HANDLING_ERRORS/examples/handling-errors-16.js
+class OddError extends Error {
+    constructor(varName = '') {
+        super(varName + ' must be even')
+        this.code = 'ERR_MUST_BE_EVEN'
+    }
+    get name() { return 'Odd Error [' + this.code + ']' }
+}
+
+async function doTask(amount) {
+    return new Promise((resolve, reject) => {
+        if (typeof amount !== 'number') {
+            reject(new TypeError('amount must be a number'))
+            return
+        } else if (amount <= 0) {
+            reject(new RangeError('amount must be greater than zero'))
+            return
+        } else if (amount % 2) {
+            reject(new OddError('amount'))
+            return
+        }
+        resolve(amount / 2)
+    })
+}
+
+async function run() {
+    // We wrapped the try/catch block in an async function
+    try {
+        // This time we await `doTask(3)`, so the async function will handle the promise.
+        // Since 3 is an odd number, the promise returned from `doTask(3)`, will call `reject` with
+        // our custom `OddError`.
+        const result = await doTask(3)
+        console.log('result', result)
+    } catch(err) {
+        if (err instanceof TypeError) {
+            console.error('wrong type')
+        } else if (err instanceof RangeError) {
+            console.error('out of range')
+        // The `catch` block will identify the `code` property and then output "can not be odd"
+        } else if (err.code === 'ERR_MUST_BE_EVEN') {
+            console.error('cannot be odd')
+        } else {
+            console.error('Unknown error', err)
+        }
+    }
+}
+
+run()
+
+```
+
+```txt
+$ node handling-errors-16.js
+cannot be odd
+
+```
+
+Using `try/catch` within an async function to handle awaited promises is *syntactic sugar*. The
+`catch` block in the async function `run` is the equivalent of the `catch` method chained to an
+async function call, for example `asyncFunc().then().catch(...)`.
+
+An async function always returns a promise that resolves to the returned value, unless a `throw`
+occurs in that async function, in which case the returned promise rejects. That makes possible that
+instead of returning a promise where we explicitly call `reject`, we can simply `throw`.
+```js
+// 10_HANDLING_ERRORS/examples/handling-errors-17.js
+class OddError extends Error {
+    constructor(varName = '') {
+        super(varName + ' must be even')
+        this.code = 'ERR_MUST_BE_EVEN'
+    }
+    get name() { return 'Odd Error [' + this.code + ']' }
+}
+
+async function doTask(amount) {
+    // Instead of returning a promise in which we explicitly call `reject`, we throw right after
+    // each error
+    if (typeof amount !== 'number') throw new TypeError('amount must be a number')
+    if (amount <= 0) throw new RangeError('amount must be greater than zero')
+    if (amount % 2) throw new OddError('amount')
+    return amount / 2
+}
+
+async function run() {
+    try {
+        // When an error is thrown the program is interrupted and the runtime starts looking for a
+        // catch block to handle the error.
+        const result = await doTask(3)
+        console.log('result', result)
+    } catch(err) {
+        if (err instanceof TypeError) {
+            console.error('wrong type')
+        } else if (err instanceof RangeError) {
+            console.error('out of range')
+        } else if (err.code === 'ERR_MUST_BE_EVEN') {
+            console.error('cannot be odd')
+        } else {
+            console.error('Unknown error', err)
+        }
+    }
+
+    // In case that a `catch` block was not found in the current execution stack, then the program
+    // crashes, and Node.js prints the error stack trace to the console
+}
+
+run()
+
+```

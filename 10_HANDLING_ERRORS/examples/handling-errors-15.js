@@ -12,7 +12,7 @@ async function doTask(amount) {
             reject(new TypeError('amount must be a number'))
             return
         } else if (amount <= 0) {
-            reject(new ReferenceError('amount must be greater than zero'))
+            reject(new RangeError('amount must be greater than zero'))
             return
         } else if (amount % 2) {
             reject(new OddError('amount'))

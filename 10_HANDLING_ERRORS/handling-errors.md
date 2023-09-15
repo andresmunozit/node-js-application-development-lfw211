@@ -806,7 +806,8 @@ async function doTask(amount) {
 async function run() {
     // We wrapped the try/catch block in an async function
     try {
-        // This time we await `doTask(3)`, so the async function will handle the promise.
+        // This time we await `doTask` call, so the async function will handle the returned
+        // promise.
         // Since 3 is an odd number, the promise returned from `doTask(3)`, will call `reject` with
         // our custom `OddError`.
         const result = await doTask(3)
@@ -816,7 +817,7 @@ async function run() {
             console.error('wrong type')
         } else if (err instanceof RangeError) {
             console.error('out of range')
-        // The `catch` block will identify the `code` property and then output "can not be odd"
+        // The `catch` block will identify the `code` property and then output "cannot be odd"
         } else if (err.code === 'ERR_MUST_BE_EVEN') {
             console.error('cannot be odd')
         } else {
@@ -918,13 +919,13 @@ async function doTask(amount) {
 
 In the case where the promise returned from `asyncFetchResult` rejects, it will cause the
 promise returned from `doTask` to reject. This will trigger the `catch` block in the `run` async
-function. Note that the catch block could be extended to handle that operational error.
+function. Note that the catch block could be extended to handle that specific operational error.
 
 ## Propagation
 Error Propagation is a concept where a function, instead of handling an error itself, lets the
 caller deal with it. Take, for example, the `doTask` function that might produce an error. Another
-function, `run`, calls `doTask` and manages this potential error. If `doTask` encounters an unexpected
-error, it's "propagated" to be addressed by the `run` function.
+function, `run`, calls `doTask` and manages this potential error. If `doTask` encounters an
+unexpected error, it's "propagated" to be addressed by the `run` function.
 
 The following is a full implementation of our code in async/await form with `run` *handling* known
 errors but *propagating* unknown errors.
@@ -1003,5 +1004,243 @@ Error caugth Error: some other error
 Error propagation works similarly in synchronous code, both in structure and syntax. We can convert
 `doTask` and run into non-async functions by removing the async keyword:
 ```js
+// 10_HANDLING_ERRORS/examples/handling-errors-19.js
+class OddError extends Error {
+    constructor(varName = '') {
+        super(varName + ' must be even')
+        this.code = 'ERR_MUST_BE_EVEN'
+    }
+    get name() {
+        return 'OddError [' + this.code + ']'
+    }
+}
+
+function codify(err, code) {
+    err.code = code
+    return err
+}
+
+// We remove the async keyword from `doTask` and `run` functions
+function doTask(amount) {
+    if (typeof amount !== 'number') throw codify(
+        new TypeError('amount must be a number'),
+        'ERR_AMOUNT_MUST_BE_NUMBER'
+    )
+    if (amount <= 0) throw codify(
+        new RangeError('amount must be greater than zero'),
+        'ERR_AMOUNT_MUST_EXCEED_ZERO'
+    )
+    if (amount % 2) throw new OddError('amount')
+    throw Error('some other error')
+    return amount / 2
+}
+
+function run() {
+    try {
+        // We remove the `await` keyword since run and `doTask` are not `async`  functions anymore
+        const result = doTask('not a valid input') // This will cause a `TypeError` to be thrown
+        console.log('result', result)
+    } catch (err) {
+        if (err.code === 'ERR_AMOUNT_MUST_BE_NUMBER') {
+            throw Error('wrong type')
+        } else if (err.code === 'ERR_AMOUNT_MUST_EXCEED_ZERO') {
+            throw Error('out of range')
+        } else if (err.code === 'ERR_MUST_BE_EVEN') {
+            throw Error('cannot be odd')
+        } else {
+            throw err
+        }
+    }
+}
+
+// Since `run` is synchronous it will return a value instead of a promise, that means we can't use
+// the `catch` handler, instead we're using a try/catch block outside of `run`
+try { run() } catch (err) { console.error('Error caught', err) }
 
 ```
+
+```txt
+$ node handling-errors-19.js
+Error caught Error: wrong type
+    at run (/.../handling-errors-19.js:38:19)
+    at Object.<anonymous> (/.../handling-errors-19.js:51:7)
+    at Module._compile (node:internal/modules/cjs/loader:1254:14)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1308:10)
+    at Module.load (node:internal/modules/cjs/loader:1117:32)
+    at Module._load (node:internal/modules/cjs/loader:958:12)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:81:12)
+    at node:internal/main/run_main_module:23:47
+
+```
+
+For a comprehensive study of error propagation, let's revisit our example using a *callback-based*
+approach. As discussed in Chapter 8, we'll adapt the `doTask` function to utilize *error-first*
+callbacks, where errors are passed as the initial argument to a callback:
+```js
+// 10_HANDLING_ERRORS/examples/handling-errors-20.js
+class OddError extends Error {
+    constructor(varName = '') {
+        super(varName + ' must be even')
+        this.code = 'ERR_MUST_BE_EVEN'
+    }
+    get name() {
+        return 'OddError [' + this.code + ']'
+    }
+}
+
+function codify(err, code) {
+    err.code = code
+    return err
+}
+
+function doTask(amount, cb) {
+    // Validate input and handle errors using callback
+    if (typeof amount !== 'number') {
+        cb(codify(
+            new TypeError('amount must be a number'),
+            'ERR_AMOUNT_MUST_BE_NUMBER'
+        ))
+        return
+    }
+    if(amount <= 0) {
+        cb(codify(
+            new RangeError('amount must be greater than zero'),
+            'ERR_AMOUNT_MUST_EXCEED_ZERO'
+        ))
+        return
+    }
+    if(amount % 2) {
+        cb(codify(
+            new OddError('amount')
+        ))
+        return
+    }
+    cb(null, amount / 2)
+}
+
+// The `run` function has to be adapted to take a callback, so errors can propagate via that
+// callback function
+function run(cb) {
+    // When calling `doTask` we need to now supply a callback function and check whether the first
+    // `err` argument is truthy to generate the equivalent of a catch block
+    doTask(4, (err, result) => { // Valid input
+        if (err) {
+            if (err.code === 'ERR_AMOUNT_MUST_BE_NUMBER') {
+                cb(Error('wrong type'))
+            } else if (err.code === 'ERR_AMOUNT_MUST_EXCEED_ZERO') {
+                cb(Error('out of range'))
+            } else if (err.code === 'ERR_MUST_BE_EVEN') {
+                cb(Error('cannot be odd'))
+            } else {
+                cb(err)
+            }
+            return
+        }
+        console.log('result', result)
+    })
+}
+
+// We call run and pass it a callback function, which checks whether the first argument (err) is
+// truthy andd if it is, the error is logged
+run((err) => {
+    if (err) console.error('Error caught', err)
+})
+
+```
+```txt
+$ node handling-errors-20.js
+result 2
+
+```
+
+Let's insert the same artificial error as in the other examples, in order to demonstrate error
+propagation:
+```js
+// 10_HANDLING_ERRORS/examples/handling-errors-21.js
+class OddError extends Error {
+    constructor(varName = '') {
+        super(varName + ' must be even')
+        this.code = 'ERR_MUST_BE_EVEN'
+    }
+    get name() {
+        return 'OddError [' + this.code + ']'
+    }
+}
+
+function codify(err, code) {
+    err.code = code
+    return err
+}
+
+function doTask(amount, cb) {
+    if (typeof amount !== 'number') {
+        cb(codify(
+            new TypeError('amount must be a number'),
+            'ERR_AMOUNT_MUST_BE_NUMBER'
+        ))
+        return
+    }
+    if(amount <= 0) {
+        cb(codify(
+            new RangeError('amount must be greater than zero'),
+            'ERR_AMOUNT_MUST_EXCEED_ZERO'
+        ))
+        return
+    }
+    if(amount % 2) {
+        cb(codify(
+            new OddError('amount')
+        ))
+        return
+    }
+
+    // Artificial error
+    cb(Error('some other error'))
+    return
+    cb(null, amount / 2)
+}
+
+function run(cb) {
+    doTask(4, (err, result) => {
+        if (err) {
+            if (err.code === 'ERR_AMOUNT_MUST_BE_NUMBER') {
+                cb(Error('wrong type'))
+            } else if (err.code === 'ERR_AMOUNT_MUST_EXCEED_ZERO') {
+                cb(Error('out of range'))
+            } else if (err.code === 'ERR_MUST_BE_EVEN') {
+                cb(Error('cannot be odd'))
+            } else {
+                // This will be reached
+                cb(err)
+            }
+            return
+        }
+        console.log('result', result)
+    })
+}
+
+run((err) => {
+    // `err` is truthy
+    if (err) console.error('Error caught', err)
+})
+
+```
+```txt
+$ node handling-errors-21.js
+Error caught Error: some other error
+    at doTask (/.../handling-errors-21.js:40:8)
+    at run (/.../handling-errors-21.js:46:5)
+    at Object.<anonymous> (/.../handling-errors-21.js:64:1)
+    at Module._compile (node:internal/modules/cjs/loader:1254:14)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1308:10)
+    at Module.load (node:internal/modules/cjs/loader:1117:32)
+    at Module._load (node:internal/modules/cjs/loader:958:12)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:81:12)
+    at node:internal/main/run_main_module:23:47
+
+```
+
+Using callbacks, like async/await or Promises, isn't necessary unless we also have asynchronous work
+to do. We've seen how some errors are addressed directly, while others are passed up. Errors should
+often be handled at the highest level, such as a module's main file or an app's entry point.
+Context dictates if an error is propagated, like after multiple failed network retries.

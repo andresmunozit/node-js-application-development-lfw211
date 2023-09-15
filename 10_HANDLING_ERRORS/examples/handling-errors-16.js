@@ -25,7 +25,8 @@ async function doTask(amount) {
 async function run() {
     // We wrapped the try/catch block in an async function
     try {
-        // This time we await `doTask(3)`, so the async function will handle the promise
+        // This time we await `doTask` call, so the async function will handle the returned
+        // promise.
         // Since 3 is an odd number, the promise returned from `doTask(3)`, will call `reject` with
         // our custom `OddError`
         const result = await doTask(3)
@@ -35,7 +36,7 @@ async function run() {
             console.error('wrong type')
         } else if (err instanceof RangeError) {
             console.error('out of range')
-        // The `catch` block will identify the `code` property and then output "can not be odd"
+        // The `catch` block will identify the `code` property and then output "cannot be odd"
         } else if (err.code === 'ERR_MUST_BE_EVEN') {
             console.error('cannot be odd')
         } else {

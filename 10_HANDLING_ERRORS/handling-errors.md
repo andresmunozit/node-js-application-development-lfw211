@@ -345,7 +345,9 @@ function doTask(amount) {
 }
 
 try {
-    const result = doTask(3)
+    // When the input is invalid, `doTask` function will throw so program execution doesn't proceed
+    // to the next line but instead jumps to the `catch` block
+    const result = doTask(3) // Invalid input
     console.log('result', result)
 } catch(err) {
     // Console error only prints an error message in the console, it doesn't deal with the error in
@@ -393,9 +395,7 @@ function doTask(amount) {
 }
 
 try {
-    // When the input is invalid, `doTask` function will throw so program execution doesn't proceed
-    // to the next line but instead jumps to the `catch` block
-    const result = doTask(4) // valid input
+    const result = doTask(4) // Valid input
     console.log('result', result)
 } catch(err) {
     console.error('Error caugth: ', err)
@@ -852,6 +852,7 @@ class OddError extends Error {
     get name() { return 'Odd Error [' + this.code + ']' }
 }
 
+// This allows the possibility of doTask to perform asynchronous tasks
 async function doTask(amount) {
     // Instead of returning a promise in which we explicitly call `reject`, we throw right after
     // each error
@@ -865,7 +866,7 @@ async function run() {
     try {
         // When an error is thrown the program is interrupted and the runtime starts looking for a
         // catch block to handle the error.
-        const result = await doTask(3)
+        const result = await doTask(3) // Invalid input
         console.log('result', result)
     } catch(err) {
         if (err instanceof TypeError) {
@@ -884,5 +885,123 @@ async function run() {
 }
 
 run()
+
+```
+
+```txt
+$ node handling-errors-17.js
+cannot be odd
+
+```
+
+All the errors we've been creating and handling are develeloper errors, but in an asynchronous
+context we're most likely to encounter operational errors. For example imagine an HTTP request that
+fails for some reason, that's an asynchronous operational error. We can handle the operational
+errors in the same way as developer errors, that means we can await the asynchronous operation and
+then catch any operational errors as well.
+
+For example:
+```js
+// Pseudocode
+async function doTask(amount) {
+    if (typeof amount !== 'number') throw new TypeError('amount must be a number')
+    if (amount <= 0) throw new RangeError('amount must be greater than zero')
+    if (amount % 2) throw new OddError('amount')
+    // The `asyncFetchResult` imaginary function makes an HTTP request. If the operartion is
+    // successful the promise returned from `asyncFetchResult` resolves to a valid value, if it's
+    // not for any reason (network error, service error, etc.), then the promise will reject.
+    const result = await asyncFetchResult(amount)
+    return result
+} 
+
+```
+
+In the case where the promise returned from `asyncFetchResult` rejects, it will cause the
+promise returned from `doTask` to reject. This will trigger the `catch` block in the `run` async
+function. Note that the catch block could be extended to handle that operational error.
+
+## Propagation
+Error Propagation is a concept where a function, instead of handling an error itself, lets the
+caller deal with it. Take, for example, the `doTask` function that might produce an error. Another
+function, `run`, calls `doTask` and manages this potential error. If `doTask` encounters an unexpected
+error, it's "propagated" to be addressed by the `run` function.
+
+The following is a full implementation of our code in async/await form with `run` *handling* known
+errors but *propagating* unknown errors.
+```js
+// 10_HANDLING_ERRORS/examples/handling-errors-18.js
+class OddError extends  Error  {
+    constructor(varName = '') {
+        super(varName + ' must be even')
+        this.code = 'ERR_MUST_BE_EVEN'
+    }
+    get name() {
+        return 'OddError [' + this.code + ']'
+    }
+}
+
+function codify(err, code) {
+    err.code = code
+    return err
+}
+
+async function doTask(amount) {
+    if (typeof amount !== 'number') throw codify(
+        new TypeError('amount must  be a number'),
+        'ERR_AMOUNT_MUST_BE_NUMBER'
+    )
+    if (amount <= 0) throw codify(
+        new RangeError('amount must be greater than zero'),
+        'ERR_AMOUNT_MUST_EXCEED_ZERO'
+    )
+    if (amount %2) throw OddError('amount')
+    // For purposes of explanation the `doTask` function unconditionally throws an error when input
+    // is valid so that we show the error propagation
+    throw Error('some other error')
+    return amount / 2
+}
+
+async function run() {
+    try {
+        const result = await doTask(4)
+        console.log(result)
+    } catch (err) {
+        if (err.code === 'ERR_AMOUNT_MUST_BE_NUMBER') {
+            console.log('wrong type')
+        } else if (err.code === 'ERR_AMOUNT_MUST_EXCEED_ZERO') {
+            console.log('out of range')
+        } else if (err.code === 'ERR_MUST_BE_EVEN') {
+            console.log('cannot be odd')
+        } else {
+            // The error doesn't correspond to any of the known errors and so instead of logging it
+            // out, it is rethrown
+            throw err
+        }
+    }
+}
+
+// This causes the promise returned by the run async function to reject, thus triggering the catch
+// handler which is attached to it
+run().catch((err) => { console.log('Error caugth', err) })
+
+```
+```txt
+$ node handling-errors-18.js 
+Error caugth Error: some other error
+    at doTask (/.../handling-errors-18.js:28:11)
+    at run (/.../handling-errors-18.js:34:30)
+    at Object.<anonymous> (/.../handling-errors-18.js:53:1)
+    at Module._compile (node:internal/modules/cjs/loader:1254:14)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1308:10)
+    at Module.load (node:internal/modules/cjs/loader:1117:32)
+    at Module._load (node:internal/modules/cjs/loader:958:12)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:81:12)
+    at node:internal/main/run_main_module:23:47
+
+```
+
+Error propagation works similarly in synchronous code, both in structure and syntax. We can convert
+`doTask` and run into non-async functions by removing the async keyword:
+```js
 
 ```

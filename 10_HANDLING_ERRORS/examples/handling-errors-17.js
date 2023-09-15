@@ -15,6 +15,7 @@ async function doTask(amount) {
     return amount / 2
 }
 
+// This allows the possibility of doTask to perform asynchronous tasks
 async function run() {
     try {
         // When an error is thrown the program is interrupted and the runtime starts looking for a

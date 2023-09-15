@@ -14,7 +14,9 @@ function doTask(amount) {
 }
 
 try {
-    const result = doTask(3)
+    // When the input is invalid, `doTask` function will throw so program execution doesn't proceed
+    // to the next line but instead jumps to the `catch` block
+    const result = doTask(3) // Invalid input
     console.log('result', result)
 } catch(err) {
     // Console error only prints an error message in the console, it doesn't deal with the error in

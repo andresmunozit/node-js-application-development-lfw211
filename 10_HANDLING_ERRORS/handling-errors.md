@@ -1141,7 +1141,7 @@ function run(cb) {
 }
 
 // We call run and pass it a callback function, which checks whether the first argument (err) is
-// truthy andd if it is, the error is logged
+// truthy and if it is, the error is logged
 run((err) => {
     if (err) console.error('Error caught', err)
 })
@@ -1244,3 +1244,214 @@ Using callbacks, like async/await or Promises, isn't necessary unless we also ha
 to do. We've seen how some errors are addressed directly, while others are passed up. Errors should
 often be handled at the highest level, such as a module's main file or an app's entry point.
 Context dictates if an error is propagated, like after multiple failed network retries.
+
+## Labs
+### Lab 10.1 - Synchronous Error Handling
+The native URL constructor can be used to parse URLs, it's been wrapped into a function called
+`parseURL`:
+```js
+// 10_HANDLING_ERRORS/labs/labs-1/index-invalid-input.js
+function parseURL (str) {
+    const parsed = new URL(str)
+    return parsed
+}
+
+```
+
+If URL is passed a unparsable URL string it will throw, so calling `parseURL('foo')` will result
+in an exception:
+```txt
+$ node index-invalid-input.js 
+node:internal/url:566
+  throw new ERR_INVALID_URL(input);
+  ^
+
+TypeError [ERR_INVALID_URL]: Invalid URL
+    at new NodeError (node:internal/errors:399:5)
+    at URL.onParseError (node:internal/url:566:9)
+    at new URL (node:internal/url:646:5)
+    at parseURL (/.../index-invalid-input.js:2:20)
+    at Object.<anonymous> (/.../index-invalid-input.js:6:1)
+    at Module._compile (node:internal/modules/cjs/loader:1254:14)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1308:10)
+    at Module.load (node:internal/modules/cjs/loader:1117:32)
+    at Module._load (node:internal/modules/cjs/loader:958:12)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:81:12) {
+  input: 'foo',
+  code: 'ERR_INVALID_URL'
+}
+
+Node.js v18.15.0
+
+```
+
+The `labs/labs-1` folder contains an `index.js` file with the following content:
+```js
+'use strict'
+const assert = require('assert')
+
+function parseUrl (str) {
+  const parsed = new URL(str)
+  return parsed
+}
+
+assert.doesNotThrow(() => { parseUrl('invalid-url') })
+assert.equal(parseUrl('invalid-url'), null)
+assert.deepEqual(
+  parseUrl('http://example.com'), 
+  new URL('http://example.com')
+)
+console.log('passed!')
+
+```
+
+Modify the `parseURL` function body such that instead of throwing an error, it returns null when
+the URL is invalid. Use the fact that URL will throw when given invalid input to determine
+whether or not to return null or a parsed object.
+
+Once implemented, execute the `index.js` file with node, if the output says "passed!" then the
+exercise was completed successfully.
+
+#### Solution
+```js
+// 10_HANDLING_ERRORS/labs/labs-1/index-solution.js
+'use strict'
+const assert = require('assert')
+
+function parseUrl (str) {
+  // We added a try/catch block to handle posible errors thrown during `URL(str)` execution
+  try {
+    const parsed = new URL(str)
+    return parsed
+  } catch {
+    return null
+  }
+}
+
+assert.doesNotThrow(() => { parseUrl('invalid-url') })
+assert.equal(parseUrl('invalid-url'), null)
+assert.deepEqual(
+  parseUrl('http://example.com'), 
+  new URL('http://example.com')
+)
+console.log('passed!')
+
+
+```
+
+```txt
+$ node index-solution.js 
+passed!
+
+```
+
+### Lab 10.2 - Async Function Error Handling
+The following code loads the fs/promises module to read a file based on a file path passed to
+a `read` function:
+```js
+const { readFile } = require('fs/promises')
+
+async function read(file) {
+    const content = await readFile(file)
+    return content
+}
+
+```
+
+The promise returned from fs/promises `readFile` may reject for a variety of reasons, for
+instance if the specified file path doesn't exist or the process doesn't have permissions to
+access it. In this scenario, we don't care what the reason for failure is, we just want to propagate
+a single error instance from the native `Error` constructor with the message 'failed to read'.
+
+The `index.js` file contains the following code:
+```js
+// labs-june-2023/labs/ch-10/labs-2/index.js
+'use strict'
+const { readFileSync } = require('fs')
+const { readFile } = require('fs/promises')
+const assert = require('assert')
+
+async function read (file) {
+  const content = await readFile(file)
+  return content
+}
+
+
+async function check () {
+  await assert.rejects(
+    read('not-a-valid-filepath'), 
+    new Error('failed to read')
+  )
+  assert.deepEqual(
+    await read(__filename),
+    readFileSync(__filename)
+  )
+  console.log('passed!')
+}
+
+check()
+
+```
+
+Modify the body of the `read` function so that any possible rejection by the promise returned
+from the fs/promises `readFile` call results in the `read` function rejecting with a
+`new Error('failed to read')` error. If implemented correctly, when node `index.js` is
+executed the output should be "passed!":
+
+#### Solution
+```js
+// 10_HANDLING_ERRORS/labs/labs-2/index.js
+'use strict'
+const { readFileSync } = require('fs')
+const { readFile } = require('fs/promises')
+const assert = require('assert')
+
+async function read(file) {
+    // Using a try/catch block to handle rejections
+    try {
+        const content = await readFile(file)
+        return content
+    } catch {
+        // Throw an instance of `Error` with a specific message
+        throw new Error('failed to read')
+    }
+}
+
+async function check() {
+    await assert.rejects(
+        read('not-a-valid-filepath'),
+        new Error('failed to read')
+    )
+    assert.deepEqual(
+        await read(__filename),
+        readFileSync(__filename)
+    )
+    console.log('passed!')
+}
+
+check()
+
+```
+
+```txt
+$ node index.js
+passed!
+
+```
+
+### Knowledge Check
+1. If there is a chance that a function that is synchronous may throw, what can be used to handle
+the error?
+- A. An if statement
+- B. A try/catch block [x]
+- C. An error first callback
+
+2. If a throw occurs inside a Promises then handler function, what sort of error will this generate?
+- A. An exception
+- B. A rejection [x]
+- C. An exit code
+
+3. What is a reliable way to identify different kinds of errors in a catch block or handler?
+- A. Check the instance of the errors
+- B. Only throw strings
+- C. Apply duck-typing to error checks [x]

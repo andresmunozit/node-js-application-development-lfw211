@@ -317,7 +317,7 @@ got error: oh oh
 ## Promise-Based Single Use Listener and AbortController
 We previously discussed about `AbortController` as a means of canceling asynchronous operations. It
 can also be used to cancel promisified event listeners. The `events.once` function returns a promise
-that resolves once an even has been fired:
+that resolves once an event has been fired:
 ```js
 // Pseudocode
 import someEventEmitter from './somewhere.js'

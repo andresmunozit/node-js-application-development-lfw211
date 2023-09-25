@@ -235,3 +235,210 @@ finished reading
 
 Contrary to the `Readable` constructor, the `Readable.from` utility functions set the `objectMode`
 to `true` by default.
+
+## Writable Streams
+The `Writable` constructor creates writable streams. A writable stream could be used to write a
+file, write data to an HTTP response, or write to the terminal. The  `Writable` constructor inherits
+from the `EventEmitter` constructor, so writable streams are event emitters.
+
+To send data to a writable stream, the `write` method is used:
+```js
+// 12_WORKING_WITH_STREAMS/examples/streams-5.js
+'use strict'
+const fs = require('fs')
+const writable = fs.createWriteStream('./out')
+
+// The "finish" event is triggered once writing is complete.
+writable.on('finish', () => { console.log('finished writing')})
+
+// The `write` method queues up data to be written. Strings are automatically converted to buffers.
+writable.write('A\n')
+writable.write('B\n')
+writable.write('C\n')
+
+// The `end` method writes a final chunk, then concludes the stream. This triggers the "finish"
+// event.
+writable.end('nothing more to write')
+
+```
+
+```txt
+$ node streams-5.js
+finished writing
+
+$ node -p "fs.readFileSync('./out').toString()"
+A
+B
+C
+nothing more to write
+
+```
+
+Like readable streams, writable streams are primarily used for input/output tasks, often interacting
+with native C-binding. However, we can also craft a simplified writable stream for demonstration
+purposes:
+```js
+// 12_WORKING_WITH_STREAMS/examples/streams-6.js
+'use strict'
+const { Writable } = require('stream')
+const createWriteStream = (data) => {
+    // Instantiate a writable stream using the `Writable` constructor
+    return new Writable({
+        // The `write` function handles each data chunk
+        // `chunk`: the data segment
+        // `enc`: encoding (unused here)
+        // `next`: callback signaling readiness for the next chunk
+        write(chunk, enc, next) {
+            data.push(chunk)
+            next()
+        }
+    })
+}
+const data = []
+const writable = createWriteStream(data)
+
+// Log the data once the stream is done
+writable.on('finish', () => { console.log('Data written:', data) })
+writable.write('A\n')
+writable.write('B\n')
+writable.write('C\n')
+writable.end('Final write')
+
+```
+```txt
+$ node streams-6.js 
+Data written: [
+  <Buffer 41 0a>,
+  <Buffer 42 0a>,
+  <Buffer 43 0a>,
+  <Buffer 46 69 6e 61 6c 20 77 72 69 74 65>
+]
+
+```
+
+Just like readable streams, the default `objectMode` for writable streams is `false`. Thus, strings
+written to the writable stream are first transformed into buffers before being passed as the `chunk`
+in the `write` function. You can prevent this conversion by setting `decodeStrings` to `false`:
+```js
+// 12_WORKING_WITH_STREAMS/examples/streams-7.js
+'use strict'
+const { Writable } = require('stream')
+const createWriteStream = (data) => {
+    return new Writable({
+        decodeStrings: false,
+        write(chunk, enc, next) {
+            data.push(chunk)
+            next()
+        }
+    })
+}
+const data = []
+const writable = createWriteStream(data)
+writable.on('finish', () => { console.log('finished writing', data)})
+writable.write('A\n')
+writable.write('B\n')
+writable.write('C\n')
+writable.end('nothing  more to write')
+
+```
+```txt
+$ node streams-7.js
+finished writing [ 'A\n', 'B\n', 'C\n', 'nothing  more to write' ]
+
+```
+
+This will only allow strings or Buffers to be written to the stream, trying to pass any other
+JavaScript value will result in an error:
+```js
+// 12_WORKING_WITH_STREAMS/examples/streams-8.js
+'use strict'
+const { Writable } = require('stream')
+
+const createWriteStream = (data) => {
+    return new Writable({
+        // By setting `decodeStrings` to false, we're specifying that incoming strings won't be 
+        // automatically converted to `Buffers`. Instead, they'll be passed as-is to the `write`
+        // function.
+        decodeStrings: false,
+        write(chunk, enc, next) {
+            data.push(chunk)
+            next()
+        }
+    })
+}
+
+const data = []
+const writable = createWriteStream(data)
+
+writable.on('finish', () => { console.log('finished writing', data) })
+
+writable.write('A\n')
+// This will throw an error. Since we disabled automatic string decoding and didn't handle other
+// types, passing a number (non-string) isn't supported.
+writable.write(1)
+writable.end('nothing more to write')
+
+```
+
+The above code would result in an error, causing the process to crash, because we're attempting to
+write a JavaScript value that isn't a string to a binary stream:
+```txt
+
+$ node streams-8.js 
+node:internal/streams/writable:315
+      throw new ERR_INVALID_ARG_TYPE(
+      ^
+
+TypeError [ERR_INVALID_ARG_TYPE]: The "chunk" argument must be of type string or an instance of
+Buffer or Uint8Array. Received type number (1)
+    at new NodeError (node:internal/errors:399:5)
+    at _write (node:internal/streams/writable:315:13)
+    at Writable.write (node:internal/streams/writable:337:10)
+    at Object.<anonymous> (/.../streams-8.js:25:10)
+    at Module._compile (node:internal/modules/cjs/loader:1254:14)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1308:10)
+    at Module.load (node:internal/modules/cjs/loader:1117:32)
+    at Module._load (node:internal/modules/cjs/loader:958:12)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:81:12)
+    at node:internal/main/run_main_module:23:47 {
+  code: 'ERR_INVALID_ARG_TYPE'
+}
+
+Node.js v18.15.0
+
+```
+
+Stream errors can be handled to avoid crashing the proccess, becacuse streams are event emitters and
+the same *special case* for the `error` event applies.
+
+If we want to support strings and any other JavaScript value, we can instead set `objectMode` to
+`true` to create an *object-mode* writable stream:
+```js
+// 12_WORKING_WITH_STREAMS/examples/streams-9.js
+'use strict'
+const { Writable } = require('stream')
+const createWritableStream = (data) => {
+    return new Writable({
+        objectMode: true,// This creates an object mode writable stream
+        write(chunk, enc, next) {
+            data.push(chunk)
+            next()
+        }
+    })
+}
+const data = []
+const writable = createWritableStream(data)
+writable.on('finish', () => { console.log('finished writing', data) })
+writable.write('A\n')
+writable.write(1)
+writable.end('nothing more to write')
+
+```
+
+By creating an *object-mode* stream, writing the number 1 to the stream will no longer cause an
+error:
+```txt
+$ node streams-9.js
+finished writing [ 'A\n', 1, 'nothing more to write' ]
+
+```

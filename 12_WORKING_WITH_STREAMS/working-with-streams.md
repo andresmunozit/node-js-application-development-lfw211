@@ -442,3 +442,134 @@ $ node streams-9.js
 finished writing [ 'A\n', 1, 'nothing more to write' ]
 
 ```
+
+## Readable-Writable Streams
+In addition to the `Readable` and `Writable` stream constructors there are three more core stream
+constructors that have both readable and writable interfaces:
+- Duplex
+- Transform
+- PassThrough
+
+We will consume from all three, but only create the most common user stream: the `Transform` stream.
+
+### Duplex
+The `Duplex` stream constructor's prototype inherits from the `Readable` constructor, but it also
+mixes in functionality from the `Writable` constructor.
+
+A `Duplex` stream combines both reading and writing capabilities. However, writing to it doesn't
+always affect what you read from it. Think of it like a two-way street where cars moving in one
+direction don't necessarily influence the other. A good example of a Duplex stream is a TCP network
+socket:
+```js
+// 12_WORKING_WITH_STREAMS/examples/streams-10.js
+'use strict'
+const net = require('net')
+
+// Initialize server; listener function triggers upon client connection.
+net.createServer((socket) => {  // Listener gets a Duplex stream, `socket`.
+    const interval = setInterval(() => {
+        // Using the writable side, write 'beat' to the stream every second.
+        socket.write('beat')
+    }, 1000)
+    
+    // Listen for `data` and `end` events on the readable side.
+    socket.on('data', (data) => {
+        // Respond with received data in upper case.
+        socket.write(data.toString().toUpperCase())
+    })
+    
+    // On client disconnect, cleanup resources; here, stopping the interval.
+    socket.on('end', () => { clearInterval(interval) })
+}).listen(3000)
+
+```
+
+In order to interact with our server, we'll also create a small client. The client socket is also
+a Duplex stream:
+```js
+// 12_WORKING_WITH_STREAMS/examples/streams-11.js
+'use strict'
+const net = require('net')
+
+// `net.connect` provides a Duplex stream representing the TCP client socket.
+const socket = net.connect(3000)
+
+socket.on('data', (data) => {
+    // Listen for data events, convert received buffers to strings, and log them.
+    console.log('got data', data.toString())
+})
+
+// Write a string using the writable side.
+socket.write('hello')
+setTimeout(() => {
+    // Send another payload after 3.25 seconds.
+    socket.write('all done')
+    setTimeout(() => {
+        // Close the stream after an additional 0.25 seconds.
+        socket.end()
+    }, 250)
+}, 3250)
+
+```
+
+If  we starth both of the code examples as separate processes we can view the interaction:
+```txt
+$ # This is the server app
+$ node streams-10.js 
+
+```
+
+```txt
+$ # This is the client app
+$ node streams-11.js 
+got data HELLO
+got data beat
+got data beat
+got data beat
+got data ALL DONE
+
+```
+
+This example primarily aims to demonstrate the interaction with a Duplex stream, a common API
+abstraction provided by the `net` module, rather than to explain the entire `net` module in detail.
+
+### Transform
+A `Transform` constructor inherits from the `Duplex` constructor. Transform streams are a type of
+duplex stream, but they ensure a direct relationship between their `read` and `write`
+functionalities. A good example is compression:
+```js
+// 12_WORKING_WITH_STREAMS/examples/streams-12.js
+'use strict'
+const { createGzip } = require('zlib')
+const transform = createGzip()
+
+// When data is written to the transform instance, `data` events emit compressed data on the
+// readable side
+// Event listeners don't block the execution; they await their specific events.
+transform.on('data', (data) => {
+    // The incoming compressed data buffers are converted to BASE64 encoded strings and logged
+    console.log('got gzip data', data.toString('base64'))
+})
+
+// Writing data to the transform instance, initiating the compression process.
+transform.write('first')
+setTimeout(() => {
+    // After a brief delay, more data is provided to the transform and then it's signaled to finish.
+    transform.end('second')
+}, 500)
+
+```
+
+```txt
+$ node streams-12.js 
+got gzip data H4sIAAAAAAAAAw==
+got gzip data S8ssKi4pTk3Oz0sBAP/7ZB0LAAAA
+
+```
+
+`Transform` streams establish a causal relationship by being designed differently. Rather than using
+separate `read` and `write` functions, they take a single `transform` option when they're
+constructed:
+```js
+
+```

@@ -6,7 +6,8 @@ const transform = createGzip()
 // readable side
 // Event listeners don't block the execution; they await their specific events.
 transform.on('data', (data) => {
-    // The incoming compressed data buffers are converted to BASE64 encoded strings and logged
+    // The incoming compressed data buffers are converted to BASE64 encoded strings and printed to
+    // the console
     console.log('got gzip data', data.toString('base64'))
 })
 

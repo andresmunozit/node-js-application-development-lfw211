@@ -547,7 +547,8 @@ const transform = createGzip()
 // readable side
 // Event listeners don't block the execution; they await their specific events.
 transform.on('data', (data) => {
-    // The incoming compressed data buffers are converted to BASE64 encoded strings and logged
+    // The incoming compressed data buffers are converted to BASE64 encoded strings and printed to
+    // the console
     console.log('got gzip data', data.toString('base64'))
 })
 
@@ -571,5 +572,103 @@ got gzip data S8ssKi4pTk3Oz0sBAP/7ZB0LAAAA
 separate `read` and `write` functions, they take a single `transform` option when they're
 constructed:
 ```js
+'use strict'
+const { Transform } = require('stream')
+const { scrypt } = require('crypto')
+const createTransformStream = () => {
+    return new Transform({
+        decodeStrings: false,
+        encoding: 'hex',
+        // `transform` option function serves both reading and writing purposes. It has a similar
+        // signature to the `write` function in `Writable` streams.
+        transform(chunk, enc, next) {
+            // Using the async `crypto.scrypt` to showcase stream's functionality.
+            scrypt(chunk, 'a-salt', 32, (err, key) => {
+                // The callback is executed after attempting to derive a cryptographic `key` using
+                // the input data. It provides the derived `key` or returns an error if one occurs.
+                if(err) {
+                    // On error, trigger an `error` event on the stream
+                    next(err)
+                    return
+                }
+                // The `next` function sends the transformed data to the stream's readable side.
+                // A null first argument indicates no error; the second argument results in a `data`
+                // event.
+                next(null, key)
+            })
+        }
+    })
+}
+
+// Instantiate the stream and write payloads to it.
+const transform = createTransformStream()
+transform.on('data', (data) => {
+    // Output data is in hex format due to the `encoding` option.
+    console.log('got data:', data)
+})
+transform.write('A\n')
+transform.write('B\n')
+transform.write('C\n')
+transform.end('nothing more to write')
 
 ```
+```txt
+$ node streams-13.js
+got data: 0b2fc9e2da62d8be9c0e20aa2a024ccb682ca4b980c960719faf7961cd4614ab
+got data: bf5d30321e62edb7799305f55b9ae8dd0903f7f80153285e3b7288d72dc6a61d
+got data: 5948d4437ac61783075269db7efa33650f537f8f775661f3d782b96580bcb22a
+got data: d552a104ef061267719651e4d1a87c9590690d15cc7989f7ba8224f60e224e2a
+
+```
+
+The `PassThrough` constructor inherits from the `Transform` constructor. It's essentially a
+transform stream where no transform is applied. For those familiar with Functional Programming this
+has similar applicability to the identity function `((val) => val)`, that is, it's a useful
+placeholder when a transform stream is expected but no transform is desired.
+
+## Determining End-of-Stream
+As we discussed before, there are at least four ways for a stream to potentially become inoperative:
+- `close` event
+- `error` event
+- `finish` event
+- `end` event
+
+We often need to know when a stream is closed so that resources can be deallocated, otherwise
+memory leaks become likely.
+
+Instead of listening to all four events, the `stream.finised` utility function provides a simplified
+way to do this:
+```js
+// s12_WORKING_WITH_STREAMS/examples/streams-14.js
+'use strict'
+const net = require('stream')
+const { finished } = require('stream')
+net.createServer((socket) => {
+    const interval = setInterval(() => {
+        socket.write('beat')
+    }, 1000)
+    socket.on('data', (data) => {
+        socket.write(data.toString().toUpperCase())
+    })
+    // The callback triggers when the stream concludes or errors out.
+    finished(socket, (err) =>  {    // The first argument is the stream and the second one is a
+                                    // callback for when the stream ends for any reason
+        // If the stream were to emit an error event the callback would be called with the error
+        // object emitted by that event
+        if(err) {
+            console.error('there was a socket error', err)
+        }
+        clearInterval(interval)
+    })
+}).listen(3000)
+
+```
+
+```
+$ node streams-14.js
+# The application is blocked
+
+```
+
+This is a much safer way to detect when a stream ends and should be standard practice, since it
+covers every eventuality.

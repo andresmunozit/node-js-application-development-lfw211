@@ -672,3 +672,344 @@ $ node streams-14.js
 
 This is a much safer way to detect when a stream ends and should be standard practice, since it
 covers every eventuality.
+
+## Piping Streams
+Piping in Node.js is an abstraction for connecting streams, inspired by command line shells like
+Bash. In Bash, `cat some-file | grep find-something` uses the pipe operator to direct the output of
+one command as the input to another. Similarly, in Node.js, the `pipe` method achieves this
+stream-to-stream data flow.
+
+Let's addapt the TCP client server from the Readable-Writable-Streams example to use the `pipe`
+method. Here is the TCP client implemented earlier:
+```js
+// 12_WORKING_WITH_STREAMS/examples/streams-11.js
+'use strict'
+const net = require('net')
+
+// `net.connect` provides a Duplex stream representing the TCP client socket.
+const socket = net.connect(3000)
+
+socket.on('data', (data) => {
+    // Listen for data events, convert received buffers to strings, and log them.
+    console.log('got data', data.toString())
+})
+
+// Write a string using the writable side.
+socket.write('hello')
+setTimeout(() => {
+    // Send another payload after 3.25 seconds.
+    socket.write('all done')
+    setTimeout(() => {
+        // Close the stream after an additional 0.25 seconds.
+        socket.end()
+    }, 250)
+}, 3250)
+
+
+```
+
+We're going to create a new version of the client, whhere we will replace the `data` event listener
+with a pipe:
+```js
+// 12_WORKING_WITH_STREAMS/examples/streams-15.js
+'use strict'
+const net = require('net')
+const socket = net.connect(3000)
+
+// `process.stdout` is a `Writable` stream. Anything written to `process.stdout` will be printed out
+// as process output
+socket.pipe(process.stdout)
+
+socket.write('hello')
+setTimeout(() => {
+    socket.write('all done')
+    setTimeout(() => {
+        socket.end()
+    }, 250)
+}, 3250)
+
+```
+
+Starting the example server from earlier and running the modified client result in the following:
+```txt
+# Server blocked
+$ node streams-14.js
+
+```
+
+Note that there are no newlines, this is because we were using `console.log` before, which adds
+a newline whenever is called: 
+```txt
+# Client
+$ node streams-15.js 
+HELLObeatbeatbeatALL DONE%
+                   
+```
+
+The `pipe` method, found on `Readable` streams, allows data from a readable stream (like `socket`, a
+`Duplex` stream) to be automatically written to a `Writable` stream. Internally the `pipe` method
+sets up a `data` listener on the readable stream and automatically writes to the writable stream as
+data become available.
+
+Though you can chain pipe calls (e.g., `streamA.pipe(streamB).pipe(streamC)`), it's risky: if a
+middle stream fails, others won't auto-close, potentially causing memory leaks. For safer piping of
+multiple streams, use the `stream.pipeline` utility function.
+
+Let's create a new pipeline of streams:
+```js
+// 12_WORKING_WITH_STREAMS/examples/streams-16.js
+'use strict'
+const net = require('net')
+const { Transform, pipeline } = require('stream')
+const { scrypt } = require('crypto')
+
+// Create a transform stream to derive a key using `crypto.scrypt`.
+const createTransformStream = () => {
+    return new Transform({
+        decodeStrings: false,
+        encoding: 'hex',
+        transform(chunk, enc, next) {
+            // Derive a key from the incoming chunk
+            scrypt(chunk, 'a-salt', 32, (err, key) => {
+                if (err) {
+                    next(err)
+                    return
+                }
+                // Emit the hex string of the derived key as a data event from the transform stream.
+                next(null, key)
+            })
+        }
+    })
+}
+
+// Start a TCP server
+net.createServer((socket) => {
+    const transform = createTransformStream()
+
+    // Send 'beat' at one second intervals to the client.
+    const interval = setInterval(() => {
+        socket.write('beat')
+    }, 1000)
+
+    // Using the `pipeline` method, data from the socket triggers the transform stream's operations,
+    // and the transformed data is sent back through the socket. This ensures seamless flow and
+    // error handling.
+    pipeline(socket, transform, socket, (err) => {
+        if (err) {
+            console.error('there was a socket error', err)
+        }
+        // Clear the interval to stop sending 'beat'
+        clearInterval(interval)
+    })
+    // The pipeline takes care of `error` and `close` events, removing the need for the `finished`
+    // utility
+}).listen(3000)
+
+```
+
+This is the result of the execution:
+```txt
+# Application blocked
+$ node streams-16.js
+
+```
+```
+# Client
+$ node streams-15.js
+eb7ee7467667aeaa343ce22b58ead0a2cb4f640682c04746bfe5f2802a0908ccbeatbeatbeat3cca2402bf1973c8a30955e3
+7b8656c104641db9e3bb09f823ab7b85919db4bc%
+
+```
+
+The `pipeline` method orchestrates the flow of data and events between streams.
+**Steps**:
+1. **Socket Data**: Server-side socket emits 'data' event on receipt.
+2. **Transformation**: Data flows into the transform stream.
+3. **Key Derivation**: Data is processed with `crypto.scrypt`.
+4. **Emission**: Hex-format key is emitted as 'data'.
+5. **Transmission**: Key is sent back via the server-side socket.
+6. **Error Handling**: Any pipeline error triggers the final callback. No need for a `finished`
+listener due to the pipeline's built-in error and completion management.
+
+## Labs
+### Lab 12.1 - Piping
+The labs-1 folder has an index.js file containing the following:
+```js
+// labs-june-2023/labs/ch-12/labs-1/index.js
+'use strict'
+const { Readable, Writable } = require('stream')
+const assert = require('assert')
+const createWritable = () => {
+    const sink = []
+    let piped = false
+    setImmediate(() => {
+        assert.strictEqual(piped, true, 'use the pipe method')
+        assert.deepStrictEqual(sink, ['a', 'b', 'c'])
+    })
+    const writable = new Writable({
+        decodeStrings: false,
+        write(chunk, enc, cb) {
+            sink.push(chunk)
+            cb()
+        },
+        final() {
+            console.log('passed!')
+        }
+    })
+    writable.once('pipe', () => {
+        piped = true
+    })
+    return writable
+}
+const readable = Readable.from(['a', 'b', 'c'])
+const writable = createWritable()
+
+// TODO - send all data from readable to writable:
+
+```
+
+Use the appropriate method to make sure that all data in the readable stream is automatically
+sent to the writable stream.
+
+If successfully implemented the process will output: passed!
+
+#### Solution
+```js
+// 12_WORKING_WITH_STREAMS/labs/labs-1/index.js
+'use strict'
+const { Readable, Writable } = require('stream')
+const assert = require('assert')
+const createWritable = () => {
+    const sink = []
+    let piped = false
+    setImmediate(() => {
+        assert.strictEqual(piped, true, 'use the pipe method')
+        assert.deepStrictEqual(sink, ['a', 'b', 'c'])
+    })
+    const writable = new Writable({
+        decodeStrings: false,
+        write(chunk, enc, cb) {
+            sink.push(chunk)
+            cb()
+        },
+        final() {
+            console.log('passed!')
+        }
+    })
+    writable.once('pipe', () => {
+        piped = true
+    })
+    return writable
+}
+const readable = Readable.from(['a', 'b', 'c'])
+const writable = createWritable()
+
+// Solution
+readable.pipe(writable)
+
+```
+```txt
+$ node index.js 
+passed!
+
+```
+
+### Lab 12.2 - Create a Transform Stream
+The labs-2 folder has an index.js file containing the following:
+```js
+// labs-june-2023/labs/ch-12/labs-2/index.js
+'use strict'
+const { Readable, Writable, Transform, PassThrough, pipeline } = require('stream')
+const assert = require('assert')
+const createWritable = () => {
+    const sink = []
+    const writable = new Writable({
+        write(chunk, enc, cb) {
+            sink.push(chunk.toString())
+            cb()
+        }
+    })
+    writable.sink = sink
+    return writable
+}
+const readable = Readable.from(['a', 'b', 'c'])
+const writable = createWritable()
+
+// TODO: replace the pass through stream 
+// with a transform stream that uppercases
+// incoming characters
+const transform = new PassThrough()
+
+pipeline(readable, transform, writable, (err) => {
+    assert.ifError(err)
+    assert.deepStrictEqual(writable.sink, ['A', 'B', 'C'])
+    console.log('passed!')
+})
+
+```
+
+Replace the line that states `const transform = new PassThrough()` so that transform
+is assigned to a transform stream that upper cases any incoming chunks. If successfully
+implemented the process will output: passed!
+
+#### Solution
+```js
+// 12_WORKING_WITH_STREAMS/labs/labs-2/index.js
+'use strict'
+const { Readable, Writable, Transform, PassThrough, pipeline } = require('stream')
+const assert = require('assert')
+const createWritable = () => {
+    const sink = []
+    const writable = new Writable({
+        write(chunk, enc, cb) {
+            sink.push(chunk.toString())
+            cb()
+        }
+    })
+    writable.sink = sink
+    return writable
+}
+const readable = Readable.from(['a', 'b', 'c'])
+const writable = createWritable()
+
+// Solution
+const transform = new Transform({
+    decodeStrings: false,
+    transform(chunk, enc, next) {
+        next(null, chunk.toUpperCase())
+    }
+})
+
+pipeline(readable, transform, writable, (err) => {
+    assert.ifError(err)
+    assert.deepStrictEqual(writable.sink, ['A', 'B', 'C'])
+    console.log('passed!')
+})
+
+```
+```
+$  node index.js
+passed!
+
+```
+
+## Knowledge Check
+### Question 12.1
+What method is used to automatically transfer data from a readable stream to a writable stream?
+- A. send
+- B. pipe [x]
+- C. connect
+
+### Question 12.2
+What utility function should be used for connecting multiple streams together?
+- A. pipeline [x]
+- B. pipe
+- C. compose
+
+### Question 12.3
+What's the difference between a Duplex stream and a Transform stream?
+- A. Duplex streams establishes a causal relationship between read and write, Transform streams do
+not
+- B. Transform streams establishes a causal relationship between read and write, Duplex streams do
+not [x]
+- C. Nothing, they are aliases of the same thing

@@ -130,3 +130,217 @@ The higher level methods for reading and writing are provided in four abstractio
 - Promise based
 - Stream based
 
+### Synchronous Methods
+Synchronous methods in the `fs` module have names ending with 'Sync', like `fs.readFileSync`. These
+methods block the process, making them useful for tasks at program startup. However, their use
+should be minimized thereafter, since a blocked process can't manage requests or perform I/O until
+the synchronous task finishes.
+
+#### Reading
+The following example will synchronously read its own contents into a buffer and then print it:
+```js
+// 13_INTERACTING_WITH_THE_FILE_SYSTEM/examples/interacting-fs-4.js
+'use strict'
+const { readFileSync } = require('fs')
+const contents = readFileSync(__filename)
+console.log(contents)
+
+```
+```txt
+$ node interacting-fs-4.js
+<Buffer 27 75 73 65 20 73 74 72 69 63 74 27 0a 63 6f 6e 73 74 20 7b 20 72 65 61 64 46 69 6c 65 53 79
+6e 63 20 7d 20 3d 20 72 65 71 75 69 72 65 28 27 66 73 27 ... 66 more bytes>
+
+```
+
+When `fs.readFileSync` is passed an options object with an encoding specified, this function will
+return the file content as a string:
+```js
+// 13_INTERACTING_WITH_THE_FILE_SYSTEM/examples/interacting-fs-5.js
+'use strict'
+const { readFileSync } = require('fs')
+// Without the encoding option set, `readFileSync` returns buffer data
+const contents = readFileSync(__filename, { encoding: 'utf8' })
+console.log(contents)
+
+```
+```txt
+$ node interacting-fs-5.js 
+'use strict'
+const { readFileSync } = require('fs')
+const contents = readFileSync(__filename, { encoding: 'utf8' })
+console.log(contents)
+
+```
+
+#### Writing
+The `fs.writeFileSync` function writes a string or buffer to the specified file path. It blocks the
+process until the write operation is fully completed.
+
+In the following example, instead of logging the contents, we will convert them to uppercase and
+write them to an `out.txt` file in the same directory.
+```js
+// 13_INTERACTING_WITH_THE_FILE_SYSTEM/examples/interacting-fs-6.js
+'use strict'
+const { join } = require('path')
+const { readFileSync, writeFileSync } = require('fs')
+const contents = readFileSync(__filename, { encoding: 'utf-8' })
+writeFileSync(join(__dirname, 'out.txt'), contents.toUpperCase())
+
+```
+```txt
+$ node interacting-fs-6.js
+$ node -p "fs.readFileSync('out.txt').toString()"
+'USE STRICT'
+CONST { JOIN } = REQUIRE('PATH')
+CONST { READFILESYNC, WRITEFILESYNC } = REQUIRE('FS')
+CONST CONTENTS = READFILESYNC(__FILENAME, { ENCODING: 'UTF-8' })
+WRITEFILESYNC(JOIN(__DIRNAME, 'OUT.TXT'), CONTENTS.TOUPPERCASE())
+
+```
+
+An options object can be passed to `fs.writeFileSync`, with a `flag` option set to 'a' to open a
+file in append mode:
+```js
+// 13_INTERACTING_WITH_THE_FILE_SYSTEM/examples/interacting-fs-7.js
+'use strict'
+const { join } = require('path')
+const { readFileSync, writeFileSync } = require('fs')
+const contents = readFileSync(__filename, { encoding: 'utf-8'})
+writeFileSync(join(__dirname, 'out.txt'), contents.toUpperCase(), {
+    flag: 'a',
+})
+
+```
+```txt
+$ node  interacting-fs-7.js
+$ node -p "fs.readFileSync('out.txt').toString()"
+'USE STRICT'
+CONST { JOIN } = REQUIRE('PATH')
+CONST { READFILESYNC, WRITEFILESYNC } = REQUIRE('FS')
+CONST CONTENTS = READFILESYNC(__FILENAME, { ENCODING: 'UTF-8' })
+WRITEFILESYNC(JOIN(__DIRNAME, 'OUT.TXT'), CONTENTS.TOUPPERCASE())
+
+'USE STRICT'
+CONST { JOIN } = REQUIRE('PATH')
+CONST { READFILESYNC, WRITEFILESYNC } = REQUIRE('FS')
+CONST CONTENTS = READFILESYNC(__FILENAME, { ENCODING: 'UTF-8'})
+WRITEFILESYNC(JOIN(__DIRNAME, 'OUT.TXT'), CONTENTS.TOUPPERCASE(), {
+    FLAG: 'A',
+}) 
+
+```
+
+For a full list of supported flags, go to
+[File System Flags](https://nodejs.org/dist/latest-v18.x/docs/api/fs.html#fs_file_system_flags).
+
+If there is a problem with an operation the `*Sync` APIs will throw. So to perform error handling
+they need to be wrapped in a `try/catch block`. In this scenario, the `fs.chmodSync` method was
+employed to deliberately produce an error. When the `fs.writeFileSync` method tried accessing the
+file, it encountered a "permission denied" error.:
+```txt
+$ node -e "fs.chmodSync('out.txt', 0o000)"
+$ node interacting-fs-7.js 
+node:internal/fs/utils:347
+    throw err;
+    ^
+
+Error: EACCES: permission denied, open '/.../out.txt'
+    at Object.openSync (node:fs:601:3)
+    at writeFileSync (node:fs:2249:35)
+    at Object.<anonymous> (/.../interacting-fs-7.js:5:1)
+    at Module._compile (node:internal/modules/cjs/loader:1254:14)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1308:10)
+    at Module.load (node:internal/modules/cjs/loader:1117:32)
+    at Module._load (node:internal/modules/cjs/loader:958:12)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:81:12)
+    at node:internal/main/run_main_module:23:47 {
+  errno: -13,
+  syscall: 'open',
+  code: 'EACCES',
+  path: '/.../out.txt'
+}
+
+Node.js v18.15.0
+
+$ node -e "fs.chmodSync('out.txt', 0o666)"
+
+```
+The permissions were then restored at the end using `fs.chmodSync` again.
+
+### Callback Methods
+For `*Sync` APIs in Node, control flow is straightforward due to their sequential execution. Yet,
+Node excels when I/O occurs asynchronously in the background. This leads us to callback and
+promise-based filesystem APIs.
+
+The asynchronous counterpart to `fs.readFileSync` is `fs.readFile`. Let's see an example that
+includes UTF8 encoding and and error handling:
+```js
+'use strict'
+const { readFile } = require('fs')
+readFile(__filename, { encoding: 'utf8' }, (err, contents) => {
+    if (err) {
+        console.error(err)
+        return
+    }
+    console.log(contents)
+})
+
+```
+```txt
+$ node interacting-fs-8.js
+'use strict'
+const { readFile } = require('fs')
+readFile(__filename, { encoding: 'utf8' }, (err, contents) => {
+    if (err) {
+        console.error(err)
+        return
+    }
+    console.log(contents)
+})
+
+```
+
+For `fs.readFileSync`, the process stops and waits until the file is completely read. On the other
+hand, in this example we use `fs.readFile` so execution is free to continue while the read operation
+is performed. Once the reading is done, the callback provided to `readFile` is invoked with the
+result. This non-blocking approach enables the process to handle other tasks, like processing an
+HTTP request.
+
+Let's asynchronously write the upper-cased content to `out.txt`, using the asynchronous function
+`writeFile`:
+```js
+// 13_INTERACTING_WITH_THE_FILE_SYSTEM/examples/interacting-fs-9.js
+'use strict'
+const { join } = require('path')
+const { readFile, writeFile } = require('fs')
+readFile(__filename, { encoding: 'utf8'}, (err, contents) => {
+    if (err) {
+        console.error(err)
+        return
+    }
+    const out = join(__dirname, 'out.txt')
+    writeFile(out, contents.toUpperCase(), (err) => {
+        if (err) console.log(err)
+    })
+})
+
+```
+```txt
+$ node interacting-fs-9.js 
+$ node -p "fs.readFileSync('out.txt').toString()"
+'USE STRICT'
+CONST { JOIN } = REQUIRE('PATH')
+CONST { READFILE, WRITEFILE } = REQUIRE('FS')
+READFILE(__FILENAME, { ENCODING: 'UTF8'}, (ERR, CONTENTS) => {
+    IF (ERR) {
+        CONSOLE.ERROR(ERR)
+        RETURN
+    }
+    CONST OUT = JOIN(__DIRNAME, 'OUT.TXT')
+    WRITEFILE(OUT, CONTENTS.TOUPPERCASE(), (ERR) => {
+        IF (ERR) CONSOLE.LOG(ERR)
+    })
+})
+
+```

@@ -11,7 +11,10 @@ const createReadStream = () => {
             // The `push` method sends data chunks to the readable stream.
             // When there's no more data, signal the end-of-stream by pushing `null`.
             if (data.length === 0) this.push(null) // End-of-stream indicator
-            else this.push(data.shift()) // Send the next piece of data
+            else this.push(data.shift())    // Triggers a `data` event, sending a data chunk. This
+                                            // chunk corresponds to the first element of the `data`
+                                            // array, which is also removed from the array using the
+                                            // shift method.
         }
     })
 }

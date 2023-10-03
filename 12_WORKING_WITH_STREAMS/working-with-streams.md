@@ -138,7 +138,10 @@ const createReadStream = () => {
             // The `push` method sends data chunks to the readable stream.
             // When there's no more data, signal the end-of-stream by pushing `null`.
             if (data.length === 0) this.push(null) // End-of-stream indicator
-            else this.push(data.shift()) // Send the next piece of data
+            else this.push(data.shift())    // Triggers a `data` event, sending a data chunk. This
+                                            // chunk corresponds to the first element of the `data`
+                                            // array, which is also removed from the array using the
+                                            // shift method.
         }
     })
 }
@@ -183,6 +186,7 @@ const createReadStream = () => {
     const data = ['some', 'data', 'to', 'read']
     return new Readable({
         // The `encoding` option decodes buffer (binary) data chunks to `utf8` encoded strings
+        // If the `encoding` option is not included, the emitted data chunks will be buffers
         encoding: 'utf8',
         read() {
             if (data.length === 0) this.push(null)
@@ -194,6 +198,7 @@ const createReadStream = () => {
 const readable = createReadStream()
 readable.on('data', (data) => { console.log('got data', data) })
 readable.on('end', () => { console.log('finished reading') })
+
 
 ```
 

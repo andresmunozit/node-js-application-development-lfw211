@@ -268,7 +268,7 @@ $ node -e "fs.chmodSync('out.txt', 0o666)"
 ```
 The permissions were then restored at the end using `fs.chmodSync` again.
 
-### Callback Methods
+### Callback Based Methods
 For `*Sync` APIs in Node, control flow is straightforward due to their sequential execution. Yet,
 Node excels when I/O occurs asynchronously in the background. This leads us to callback and
 promise-based filesystem APIs.
@@ -343,4 +343,103 @@ READFILE(__FILENAME, { ENCODING: 'UTF8'}, (ERR, CONTENTS) => {
     })
 })
 
+```
+
+### Promise Based Methods
+Promises are an asynchronous abstraction like callbacks. The difference is that we can use promises
+with `async/await` functions to provide easy to read sequential instructions without blocking the
+execution.
+
+We're going to use the `fs/promises` API, which provides most of the same asynchronous methods
+available in `fs`, except that `fs/promises` methods return promises instead of accepting callbacks.
+
+`fs/promises` can also be loaded with `require('fs').promises`, which is backwards compatible with
+legacy Node versions. However, `fs/promises`replaces `require('fs').promises`.
+
+Let's look a reading/writing example using `fs/promises`:
+```js
+// 13_INTERACTING_WITH_THE_FILE_SYSTEM/examples/interacting-fs-10.js
+'use strict'
+const { join } = require('path')
+const { writeFile, readFile } = require('fs/promises')
+async function run() {
+    const contents = await readFile(__filename, { encoding: 'utf-8' })
+    const out = join(__dirname, 'out.txt')
+    await writeFile(out, contents.toUpperCase())
+}
+run().catch(console.error)
+
+```
+```txt
+$ node interacting-fs-10.js 
+$ node -p "fs.readFileSync('out.txt', {encoding: 'utf-8'})"
+'USE STRICT'
+CONST { JOIN } = REQUIRE('PATH')
+CONST { WRITEFILE, READFILE } = REQUIRE('FS/PROMISES')
+ASYNC FUNCTION RUN() {
+    CONST CONTENTS = AWAIT READFILE(__FILENAME, { ENCODING: 'UTF-8' })
+    CONST OUT = JOIN(__DIRNAME, 'OUT.TXT')
+    AWAIT WRITEFILE(OUT, CONTENTS.TOUPPERCASE())
+}
+RUN().CATCH(CONSOLE.ERROR)
+
+```
+
+### Stream Based Methods
+The `fs` module offers `fs.createReadStream` and `fs.createWriteStream` methods enabling read and
+write files in chunks, which is optimal for processing large files incrementally.
+
+In the next example we show an excellent pattern if dealing with a large file because the memory
+usage will stay constant as the file is read in small chunks and written in small chunks:
+```js
+'use strict'
+const { join } = require('path')
+const { createReadStream, createWriteStream } = require('fs')
+const { pipeline } = require('stream')
+const out = join(__dirname, 'out.txt')
+pipeline(
+    createReadStream(__filename, { encoding: 'utf-8' }),
+    // With the `pipeline` method, we seamlessly read and write data in chunks without the need to
+    // explicitly pass the contents, unlike in synchronous or asynchronous `writeFile` method.
+    createWriteStream(out),
+    (err) => {
+        if (err) {
+            console.log(err)
+            return
+        }
+        console.log('finished writing')
+    }
+)
+
+```
+```txt
+$ node interacting-fs-11.js 
+finished writing
+
+# If we don't specify the encoding parameter, a buffer will be printed
+$ node -p "fs.readFileSync('out.txt', { encoding: 'utf-8' })" 
+'use strict'
+const { join } = require('path')
+const { createReadStream, createWriteStream } = require('fs')
+const { pipeline } = require('stream')
+const out = join(__dirname, 'out.txt')
+pipeline(
+    createReadStream(__filename, { encoding: 'utf-8' }),
+    // With the pipeline method, we seamlessly read and write data in chunks without the need to
+    // explicitly pass the contents, unlike in synchronous or asynchronous `writeFile` method.
+    createWriteStream(out),
+    (err) => {
+        if (err) {
+            console.log(err)
+            return
+        }
+        console.log('finished writing')
+    }
+)
+
+```
+
+To produce the read, upper-case, write scenario we created in the previous section, we will need a
+transform stream to upper-case the content:
+```
 ```

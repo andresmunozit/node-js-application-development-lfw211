@@ -1,18 +1,26 @@
-'use strict'
-const { join } = require('path')
-const { createReadStream, createWriteStream } = require('fs')
-const { pipeline } = require('stream')
-const out = join(__dirname, 'out.txt')
-pipeline(
-    createReadStream(__filename, { encoding: 'utf-8' }),
-    // With the pipeline method, we seamlessly read and write data in chunks without the need to
-    // explicitly pass the contents, unlike in synchronous or asynchronous `writeFile` method.
-    createWriteStream(out),
-    (err) => {
-        if (err) {
-            console.log(err)
-            return
+'USE STRICT'
+CONST { PIPELINE } = REQUIRE('STREAM')
+CONST { JOIN } = REQUIRE('PATH')
+CONST { CREATEREADSTREAM, CREATEWRITESTREAM } = REQUIRE('FS')
+CONST { TRANSFORM } = REQUIRE('STREAM')
+// CUSTOM STREAM TO CONVERT INPUT TEXT TO UPPERCASE
+CONST CREATEUPPERCASESTREAM = () => {
+    RETURN NEW TRANSFORM({
+        TRANSFORM(CHUNK, ENC, NEXT){
+            CONST UPPERCASED = CHUNK.TOSTRING().TOUPPERCASE()
+            NEXT(NULL, UPPERCASED)
         }
-        console.log('finished writing')
+    })
+}
+PIPELINE(
+    CREATEREADSTREAM(__FILENAME), // READ FROM THE CURRENT FILE IN CHUNKS
+    CREATEUPPERCASESTREAM(), // CONVERT EACH CHUNK TO UPPERCASE
+    CREATEWRITESTREAM(JOIN(__DIRNAME, 'OUT.TXT')),  // WRITE TRANSFORMED CHUNKS TO 'OUT.TXT'
+    (ERR) => {
+        IF (ERR) {
+            CONSOLE.ERROR(ERR)
+            RETURN
+        }
+        CONSOLE.LOG('FINISHED WRITING')
     }
 )

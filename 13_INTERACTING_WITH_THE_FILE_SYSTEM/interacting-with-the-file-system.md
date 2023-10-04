@@ -441,5 +441,136 @@ pipeline(
 
 To produce the read, upper-case, write scenario we created in the previous section, we will need a
 transform stream to upper-case the content:
+```js
+// 13_INTERACTING_WITH_THE_FILE_SYSTEM/examples/interacting-fs-12.js
+'use strict'
+const { pipeline } = require('stream')
+const { join } = require('path')
+const { createReadStream, createWriteStream } = require('fs')
+const { Transform } = require('stream')
+// Custom stream to convert input text to uppercase
+const createUppercaseStream = () => {
+    return new Transform({
+        transform(chunk, enc, next){
+            const uppercased = chunk.toString().toUpperCase()
+            next(null, uppercased)
+        }
+    })
+}
+pipeline(
+    createReadStream(__filename), // Read from the current file in chunks
+    createUppercaseStream(), // Convert each chunk to uppercase
+    createWriteStream(join(__dirname, 'out.txt')),  // Write transformed chunks to 'out.txt'
+    (err) => {
+        if (err) {
+            console.error(err)
+            return
+        }
+        console.log('finished writing')
+    }
+)
+
 ```
+```txt
+$ node -p "fs.readFileSync('out.txt').toString()" 
+'USE STRICT'
+CONST { PIPELINE } = REQUIRE('STREAM')
+CONST { JOIN } = REQUIRE('PATH')
+CONST { CREATEREADSTREAM, CREATEWRITESTREAM } = REQUIRE('FS')
+CONST { TRANSFORM } = REQUIRE('STREAM')
+// CUSTOM STREAM TO CONVERT INPUT TEXT TO UPPERCASE
+CONST CREATEUPPERCASESTREAM = () => {
+    RETURN NEW TRANSFORM({
+        TRANSFORM(CHUNK, ENC, NEXT){
+            CONST UPPERCASED = CHUNK.TOSTRING().TOUPPERCASE()
+            NEXT(NULL, UPPERCASED)
+        }
+    })
+}
+PIPELINE(
+    CREATEREADSTREAM(__FILENAME), // READ FROM THE CURRENT FILE IN CHUNKS
+    CREATEUPPERCASESTREAM(), // CONVERT EACH CHUNK TO UPPERCASE
+    CREATEWRITESTREAM(JOIN(__DIRNAME, 'OUT.TXT')),  // // WRITE TRANSFORMED CHUNKS TO 'OUT.TXT'
+    (ERR) => {
+        IF (ERR) {
+            CONSOLE.ERROR(ERR)
+            RETURN
+        }
+        CONSOLE.LOG('FINISHED WRITING')
+    }
+)
+
+```
+
+## Reading Directories
+Directories are a special type of files which hold catalog information. Similar to files the `fs`
+module provides multiple ways to *read* a directory:
+- Syncrhonous
+- Callback-based
+- Promise-based
+- An async iterable that inherits from `fs.Dir` (going into depth is beyond the scope of this
+chapter, however you can check `Class fs.Dir`
+[docs](https://nodejs.org/dist/latest-v18.x/docs/api/fs.html#fs_class_fs_dir))
+
+For each API approach, the benefits and drawbacks mirror those of reading and writing files. Avoid
+synchronous execution in scenarios depending on asynchronous tasks, like handling HTTP requests.
+Generally, callback or promise-based methods are ideal, but for very large directories, the
+stream-like API is preferable.
+
+Let's say we have a folder with the following files:
+- `example.js`
+- `file-a`
+- `file-b`
+- `file-c`
+
+The `example.js` file would be the file that executes our code. Let's take a look at synchronous,
+callback-based and promise based at the same time:
+```js
+// 13_INTERACTING_WITH_THE_FILE_SYSTEM/examples/interacting-fs-13/example.js
+'use strict'
+const { readdirSync, readdir } = require('fs')
+// Alias for `fs/promises.readdir` to prevent naming conflicts
+const { readdir: readdirProm } = require('fs/promises')
+
+try {
+    // `readdirSync` blocks execution until it reads the directory, then returns `filenames` as an
+    // array
+    console.log('sync', readdirSync(__dirname)) // `readdirSync` can throw so we use try/catch
+} catch (err) {
+    console.error(err)
+}
+
+// The files will be passed to the callback, once the directory has been read
+readdir(__dirname, (err,  files) =>  {
+    if (err) {
+        console.error(err)
+        return
+    }
+    console.log('callback', files)
+})
+
+async function run() {
+    // The  directory is asynchronously read, so execution won't be blocked, but the `run` function
+    // itself will pause until the awaited promise resolves or rejects
+    const files = await readdirProm(__dirname)
+    console.log('promise', files)
+}
+
+run().catch((err) => {
+    console.error(err)
+})
+
+```
+```txt
+$ node example.js
+sync [ 'example.js', 'file-a', 'file-b', 'file-c' ]
+callback [ 'example.js', 'file-a', 'file-b', 'file-c' ]
+promise [ 'example.js', 'file-a', 'file-b', 'file-c' ]
+
+```
+
+Covering HTTP is out of the scope of this course, however we'll examine a more advanced case:
+streaming directory contents over HTTP in JSON format:
+```js
+
 ```

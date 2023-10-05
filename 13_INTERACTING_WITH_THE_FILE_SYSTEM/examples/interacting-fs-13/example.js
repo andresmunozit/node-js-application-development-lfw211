@@ -1,11 +1,12 @@
 'use strict'
+// Let's import synchronous and callback-based methods for reading a directory
 const { readdirSync, readdir } = require('fs')
-// Alias for `fs/promises.readdir` to prevent naming conflicts
+// We create the alias `readdirProm` for the promise based method, to prevent naming conflicts
 const { readdir: readdirProm } = require('fs/promises')
 
 try {
-    // `readdirSync` blocks execution until it reads the directory, then returns `filenames` as an
-    // array
+    // `readdirSync` blocks execution until it reads the directory, then returns filenames as an
+    // async iterable
     console.log('sync', readdirSync(__dirname)) // `readdirSync` can throw so we use try/catch
 } catch (err) {
     console.error(err)

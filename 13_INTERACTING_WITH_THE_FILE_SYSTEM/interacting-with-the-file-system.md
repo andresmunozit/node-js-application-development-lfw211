@@ -524,17 +524,18 @@ Let's say we have a folder with the following files:
 - `file-c`
 
 The `example.js` file would be the file that executes our code. Let's take a look at synchronous,
-callback-based and promise based at the same time:
+callback-based and promise based approaches at the same time, by reading a directory:
 ```js
 // 13_INTERACTING_WITH_THE_FILE_SYSTEM/examples/interacting-fs-13/example.js
 'use strict'
+// Let's import synchronous and callback-based methods for reading a directory
 const { readdirSync, readdir } = require('fs')
-// Alias for `fs/promises.readdir` to prevent naming conflicts
+// We create the alias `readdirProm` for the promise based method, to prevent naming conflicts
 const { readdir: readdirProm } = require('fs/promises')
 
 try {
-    // `readdirSync` blocks execution until it reads the directory, then returns `filenames` as an
-    // array
+    // `readdirSync` blocks execution until it reads the directory, then returns filenames as an
+    // async iterable
     console.log('sync', readdirSync(__dirname)) // `readdirSync` can throw so we use try/catch
 } catch (err) {
     console.error(err)
@@ -572,5 +573,115 @@ promise [ 'example.js', 'file-a', 'file-b', 'file-c' ]
 Covering HTTP is out of the scope of this course, however we'll examine a more advanced case:
 streaming directory contents over HTTP in JSON format:
 ```js
+// 13_INTERACTING_WITH_THE_FILE_SYSTEM/examples/interacting-fs-14/example.js
+'use strict'
+// Creates a new Server instance. The `requestListener` function auto-attaches to the 'request'
+// event.
+const { createServer } = require('http')
+const { Readable, Transform, pipeline } = require('stream')
+// Open a directory asynchronously using `fs.Dir`, which manages directory read and cleanup
+// operations. Refer to POSIX opendir(3) for details
+const { opendir } = require('fs')
+
+// Create a Transform stream to format directory entries for JSON output.
+// It receives `fs.Dirent` objects and outputs buffers.
+const createEntryStream = () => {
+    let syntax = '[\n'
+    return new  Transform({
+        writableObjectMode: true, // Accepts `fs.Dirent` objects
+        readableObjectMode: false, // Outputs buffers
+
+        // Accepts `fs.Dirent` objects, prepends a JSON prefix, and outputs formatted strings.
+        transform(entry, enc, next) {
+            // `syntax = '[\n'` will be the first element prepended e.g.:
+            // entry.name = 'file1' -> transform  -> '[\nfile1'
+            next(null, `${syntax} "${entry.name}"`)
+            // After the first entry has writen, `syntax = ',\n'` will be prepended e.g.:
+            // entry.name = 'file2' -> transform  -> ',\nfile2'
+            syntax = ',\n'
+        },
+
+        // Close the JSON array before ending the stream
+        final (cb) {
+            this.push('\n]\n')
+            cb()
+        }
+    })
+}
+
+createServer((req, res) => {
+    if (req.url !== '/') {
+        res.statusCode = 404
+        res.end('Not Found')
+        return
+    }
+    // Open the current directory and get the entries asynchronously
+    opendir(__dirname, (err, dir) =>  {
+        if (err) {
+            res.statusCode = 500
+            res.end('Server Error')
+            return
+        }
+        // Convert the async iterable directory entries into a readable stream
+        const dirStream = Readable.from(dir)
+
+        // Get the transform stream for JSON formatting
+        const entryStream = createEntryStream()
+        res.setHeader('Content-Type', 'application/json')
+
+        // Pipe the directory entries through our transform stream, then to the HTTP response
+        pipeline(dirStream, entryStream, res, (err) => {
+            if (err) console.log(err)
+        })
+    })
+}).listen(3000)
+
+```
+```txt
+$ node example.js
+
+```
+```txt
+$ node -e "http.get('http://localhost:3000', (res) => res.pipe(process.stdout))"
+[
+ "file-b",
+ "file-c",
+ "file-a",
+ "example.js"
+]
+
+```
+
+## File Metadata
+Metadata about files can be obtained with the following methods:
+- `fs.stat`, `fs.statSync`, `fs/promises stat`
+- `fs.lstat`, `fs.lstatSync`, `fs/promises lstat`
+
+Returns `fs.Stat` for file metadata. `stat` follows symbolic links, while `lstat` gets metadata for
+the link itself. Use `fs.Stat` properties and methods to analyze metadata. We'll explore
+distinguishing files from directories and delve into available time stats:
+
+We already know the sync vs. async API trade-offs. So for these examples we'll use `fs.statSync`.
+
+Next, we'll identify directories in the current working directory:
+```js
+// 13_INTERACTING_WITH_THE_FILE_SYSTEM/examples/interacting-fs-15/example.js
+'use strict'
+const { readdirSync, statSync } = require('fs')
+
+// Read the directory we're currently in
+const files = readdirSync('.')
+for (const name of files) {
+    const stat = statSync(name)
+    const typeLabel = stat.isDirectory() ? 'dir: ' : 'file: '
+    console.log(typeLabel, name)
+}
+
+```
+```txt
+$ node example.js
+dir:  a-dir
+file:  a-file
+file:  example.js
 
 ```

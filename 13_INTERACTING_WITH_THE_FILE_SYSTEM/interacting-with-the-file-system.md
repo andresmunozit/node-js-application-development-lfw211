@@ -663,6 +663,7 @@ distinguishing files from directories and delve into available time stats:
 
 We already know the sync vs. async API trade-offs. So for these examples we'll use `fs.statSync`.
 
+### Is Directory? Using `stat`
 Next, we'll identify directories in the current working directory:
 ```js
 // 13_INTERACTING_WITH_THE_FILE_SYSTEM/examples/interacting-fs-15/example.js
@@ -685,3 +686,360 @@ file:  a-file
 file:  example.js
 
 ```
+
+### Time Stats
+There are four time stats available for files:
+- **Access time**: Indicates the last time the file was accessed or read.
+- **Change time**: Reflects the last time the file's metadata (like permissions or ownership) was
+altered.
+- **Modified time**: Marks the last time the file's content was written or modified.
+- **Birth time**: Denotes when the file was created.
+
+By default, these stats come as `Date` objects or milliseconds since the *epoch*. We'll use `Date`
+objects and convert them to locale strings. Now, let's display these time stats for each file:
+```js
+// 13_INTERACTING_WITH_THE_FILE_SYSTEM/examples/interacting-fs-16/example.js
+'use strict'
+const { readdirSync, statSync } = require('fs')
+const files = readdirSync('.')
+for (const name of files) {
+    const stat = statSync(name)
+    const typeLabel = stat.isDirectory() ? 'dir:'  :  'file:'
+    const { atime, birthtime, ctime, mtime } = stat
+    console.group(typeLabel, name) // Increases indentation of subsequent lines
+    // `toLocaleString`: Converts date and time to a locale-specific string (locale: language &
+    // region format).
+    console.log('atime: ', atime.toLocaleString()) // `atime`: Access time
+    console.log('ctime: ', ctime.toLocaleString()) // `ctime`: Change time
+    console.log('mtime: ', mtime.toLocaleString()) // `mtime`: Modified time
+    console.log('birthname: ', birthtime.toLocaleString())  // `birthtime`: Denotes when the file
+                                                            // was created
+    console.groupEnd()
+    console.log()
+}
+
+```
+```txt
+$ node example.js 
+dir: a-dir
+  atime:  10/6/2023, 12:15:16 PM
+  ctime:  10/6/2023, 12:15:15 PM
+  mtime:  10/6/2023, 12:15:15 PM
+  birthname:  10/6/2023, 12:15:15 PM
+
+file: a-file
+  atime:  10/6/2023, 12:15:23 PM
+  ctime:  10/6/2023, 12:15:15 PM
+  mtime:  10/6/2023, 12:15:15 PM
+  birthname:  10/6/2023, 12:15:15 PM
+
+file: example.js
+  atime:  10/6/2023, 1:20:32 PM
+  ctime:  10/6/2023, 1:20:32 PM
+  mtime:  10/6/2023, 1:20:32 PM
+  birthname:  10/6/2023, 12:15:15 PM
+
+```
+
+## Watching
+`fs.watch` allows monitoring of file system changes. Though it's provided by Node core, it's a bit
+low-level. For a more user-friendly experience, consider using the 'chokidar' library.
+
+Here, we'll monitor the current directory, logging file changes and events:
+```js
+// 13_INTERACTING_WITH_THE_FILE_SYSTEM/examples/interacting-fs-17.js
+'use strict'
+const { watch } = require('fs')
+
+// This will keep the process open and watch the current directory
+watch('.', (evt, filename) => {
+    // This listener function is called with an event name and the related filename when any changes
+    // occur in the directory.
+    console.log(evt, filename)
+})
+
+```
+
+Next you can find the code execution output:
+```txt
+$ node example.js
+rename test
+change test
+rename test-dir
+rename test-dir
+change test
+change test
+rename test-dir
+rename test
+
+```
+
+Here are the file manipulation commands that generated the events printed in the previous output:
+```txt
+$ node -e "fs.writeFileSync('test','test')"
+$ node -e "fs.mkdirSync('test-dir')"       
+$ node -e "fs.chmodSync('test-dir', 0o644)"
+$ node -e "fs.writeFileSync('test','test')"
+$ node -e "fs.chmodSync('test-dir', 0o644)"
+$ node -e "fs.unlinkSync('test')"
+
+```
+
+`fs.watch` reflects the OS's low-level events, providing limited event detail. For a clearer
+understanding, opt for the `chokidar` library or manually track file data.
+
+Maintain a file list to detect additions and removals. To differentiate between content and status
+updates, compare Modified and Change times. Equal times indicate content updates, while differing
+times signal status updates. We can see an example bellow:
+```js
+'use strict'
+const { join, resolve } = require('path')
+const { watch, readdirSync, statSync } = require('fs')
+
+// Get the current working directory; `process.cwd()` is a common alternative.
+const cwd = resolve('.')
+// Initialize a unique list (`Set`) with files from the current directory.
+const files = new Set(readdirSync('.'))
+watch('.', (evt, filename) => {
+    try {
+        // Attempt to get file stats; if this method throws, likely means the file doesn't exist.
+        const { ctimeMs, mtimeMs } = statSync(join(cwd, filename))
+        if (files.has(filename) === false) {
+            // If `filename` is new, set `evt` to 'created'.
+            evt = 'created'
+            files.add(filename)
+        } else {
+            // Check if change time equals modification time to determine update type.
+            if (ctimeMs === mtimeMs) evt = 'content-updated'
+            else evt = 'status-updated'
+        }
+    } catch (err) {
+        // Handle file not found error by marking as 'deleted'; log other errors.
+        if (err.code === 'ENOENT') {
+            files.delete(filename)
+            evt = 'deleted'
+        } else {
+            console.error(err)
+        }
+    } finally {
+        // Log the calculated event and associated filename to the console
+        console.log(evt, filename)
+    }
+})
+
+```
+
+If we execute our code, and the add a new file and delete it, it will output more suitable event
+names:
+```bash
+# 13_INTERACTING_WITH_THE_FILE_SYSTEM/examples/interacting-fs-18/run-node-coms.sh
+#!/bin/bash
+set -x
+node -e "fs.writeFileSync('test','test')"
+node -e "fs.mkdirSync('test-dir')"       
+node -e "fs.chmodSync('test-dir', 0o644)"
+node -e "fs.writeFileSync('test','test')"
+node -e "fs.chmodSync('test-dir', 0o644)"
+node -e "fs.unlinkSync('test')"
+
+```
+
+```txt
+$ node example.js
+created test
+content-updated test
+created test-dir
+status-updated test-dir
+content-updated test
+status-updated test-dir
+deleted test
+
+```
+```txt
+$ sudo chmod +x run-node-coms.sh
+$ ./run-node-coms.sh
++ node -e 'fs.writeFileSync('\''test'\'','\''test'\'')'
++ node -e 'fs.mkdirSync('\''test-dir'\'')'
++ node -e 'fs.chmodSync('\''test-dir'\'', 0o644)'
++ node -e 'fs.writeFileSync('\''test'\'','\''test'\'')'
++ node -e 'fs.chmodSync('\''test-dir'\'', 0o644)'
++ node -e 'fs.unlinkSync('\''test'\'')'
+
+```
+
+## Labs
+### Lab 13.1 - Read Directory and Write File
+The labs-1 folder contains an index.js file containing the following:
+```js
+// labs-june-2023/labs/ch-13/labs-1/index.js
+'use strict'
+const assert = require('assert')
+const { join, basename } = require('path')
+const fs = require('fs')
+const project = join(__dirname, 'project')
+try { fs.rmdirSync(project, { recursive: true }) } catch (err) { }
+const files = Array.from(Array(5), () => {
+	return join(project, Math.random().toString(36).slice(2))
+})
+files.sort()
+fs.mkdirSync(project)
+for (const f of files) fs.closeSync(fs.openSync(f, 'w'))
+
+const out = join(__dirname, 'out.txt')
+
+function exercise() {
+	// TODO read the files in the project folder
+	// and write the to the out.txt file
+}
+
+exercise()
+assert.deepStrictEqual(
+	fs.readFileSync(out).toString().split(',').map((s) => s.trim()),
+	files.map((f) => basename(f))
+)
+console.log('passed!')
+
+```
+
+The above code will generate a `project` folder and add five files to it with pseudo-randomly
+generated filenames.
+
+Complete the function named exercise so that all the files in the `project` folder, as stored in
+the `project` constant, are written to the `out.txt` file as stored in the `out` constant. Only the
+file names should be stored, not the full file paths, and file names should be comma separated.
+For instance, given a project folder with the following files:
+- `0p2ly0dluiw`
+- `2ftl32u5zu5`
+- `8t4iilscua6`
+- `90370mamnse`
+- `zfw8w7f8sm8`
+
+The `out.txt` should then contain:
+`0p2ly0dluiw,2ftl32u5zu5,8t4iilscua6,90370mamnse,zfw8w7f8sm8`
+
+If successfully implemented, the process will output: `passed!`.
+
+#### Solution
+```js
+// 13_INTERACTING_WITH_THE_FILE_SYSTEM/labs/labs-1/index.js
+'use strict'
+const assert = require('assert')
+const { join, basename } = require('path')
+const fs = require('fs') // Note that the entire `fs` API is imported
+const project = join(__dirname, 'project')
+try { fs.rmdirSync(project, { recursive: true }) } catch (err) { }
+const files = Array.from(Array(5), () => {
+	return join(project, Math.random().toString(36).slice(2))
+})
+files.sort()
+fs.mkdirSync(project)
+for (const f of files) fs.closeSync(fs.openSync(f, 'w'))
+
+const out = join(__dirname, 'out.txt')
+
+function exercise() {
+	// Read the files in the `project` folder
+	const files = fs.readdirSync(project)
+
+	// Write the to the `out.txt` file
+	fs.writeFileSync(out, files.join(','))
+}
+
+exercise()
+assert.deepStrictEqual(
+	fs.readFileSync(out).toString().split(',').map((s) => s.trim()),
+	files.map((f) => basename(f))
+)
+console.log('passed!')
+
+```
+```txt
+$ node index.js
+passed!
+(node:3212518) [DEP0147] DeprecationWarning: In future versions of Node.js, fs.rmdir(path,
+{ recursive: true }) will be removed. Use fs.rm(path, { recursive: true }) instead
+(Use `node --trace-deprecation ...` to show where the warning was created)
+
+```
+
+### Lab 13.2 - Watching
+The labs-2 folder contains an index.js file with the following:
+```js
+// labs-june-2023/labs/ch-13/labs-2/index.js
+'use strict'
+const assert = require('assert')
+const { join } = require('path')
+const fs = require('fs')
+const fsp = require('fs/promises')
+const { setTimeout: timeout } = require('timers/promises')
+const project = join(__dirname, 'project')
+
+try { fs.rmdirSync(project, { recursive: true }) } catch (err) {
+    console.error(err)
+}
+fs.mkdirSync(project)
+
+let answer = ''
+
+async function writer() {
+    const { open, chmod, mkdir } = fsp
+    const pre = join(project, Math.random().toString(36).slice(2))
+    const handle = await open(pre, 'w')
+    await handle.close()
+    await timeout(500)
+    exercise(project)
+    const file = join(project, Math.random().toString(36).slice(2))
+    const dir = join(project, Math.random().toString(36).slice(2))
+    const add = await open(file, 'w')
+    await add.close()
+    await mkdir(dir)
+    await chmod(pre, 0o444)
+    await timeout(500)
+    assert.strictEqual(
+        answer,
+        file,
+        'answer should be the file (not folder) which was added'
+    )
+    console.log('passed!')
+    process.exit()
+}
+
+writer().catch((err) => {
+    console.error(err)
+    process.exit(1)
+})
+
+function exercise(project) {
+    const files = new Set(fs.readdirSync(project))
+    fs.watch(project, (evt, filename) => {
+        try {
+            const filepath = join(project, filename)
+            const stat = fs.statSync(filepath)
+
+            // TODO - only set the answer variable if the filepath
+            // is both newly created AND does not point to a directory
+
+            answer = filepath
+        } catch (err) {
+
+        }
+    })
+}
+
+```
+When executed (e.g., using node index.js) this code will create a folder named project
+(removing it first if it already exists and then recreating it), and then perform some file system
+manipulations within the project folder.
+
+The writer function will create a file before calling the exercise function, to simulate a
+pre-existing file, The exercise function will then be called which sets up a file watcher with
+fs.watch. The writer function then proceeds to create a file, a directory and changes the
+permissions of the previously existing file. These changes will trigger the listener function
+passed as the second argument to fs.watch.
+
+The goal is to ensure that the answer variable is set to the newly created file. So when a
+directory is added, the answer variable should not be set to the directory path. When the
+preexisting files status is updated via a permissions change, the answer variable should not be
+set to that preexisting file.
+
+If implemented correctly the process will output: `passed!`

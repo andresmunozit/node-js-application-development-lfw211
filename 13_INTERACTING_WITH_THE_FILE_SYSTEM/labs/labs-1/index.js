@@ -1,7 +1,7 @@
 'use strict'
 const assert = require('assert')
 const { join, basename } = require('path')
-const fs = require('fs')
+const fs = require('fs') // Note that the entire `fs` API is imported
 const project = join(__dirname, 'project')
 try { fs.rmdirSync(project, { recursive: true }) } catch (err) { }
 const files = Array.from(Array(5), () => {
@@ -14,8 +14,11 @@ for (const f of files) fs.closeSync(fs.openSync(f, 'w'))
 const out = join(__dirname, 'out.txt')
 
 function exercise() {
-	// TODO read the files in the project folder
-	// and write the to the out.txt file
+	// Read the files in the `project` folder
+	const files = fs.readdirSync(project)
+
+	// Write the to the `out.txt` file
+	fs.writeFileSync(out, files.join(','))
 }
 
 exercise()

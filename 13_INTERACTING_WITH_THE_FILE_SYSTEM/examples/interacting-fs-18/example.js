@@ -4,7 +4,10 @@ const { watch, readdirSync, statSync } = require('fs')
 
 // Get the current working directory; `process.cwd()` is a common alternative.
 const cwd = resolve('.')
-// Initialize a unique list (`Set`) with files from the current directory.
+
+// Initializes a `Set` with the list of filenames currently in the directory.
+// `readdirSync('.')` synchronously retrieves filenames from the current directory.
+// Possible output: Set { 'file1.txt', 'file2.js', 'folder1', ... }
 const files = new Set(readdirSync('.'))
 watch('.', (evt, filename) => {
     try {

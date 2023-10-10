@@ -11,7 +11,7 @@ constants, `__filename` and `__dirname`, provide the absolute paths to the curre
 directory, respectively.
 
 Let's say we have the `interacting-fs-1.js` file at
-`/home/andres/code/andresmunozit/node-js-application-development-lfw211/13_INTERACTING_WITH_THE_FILES_SYSTEM/examples/interacting-fs-1.js`:
+`/node-js-application-development-lfw211/13_INTERACTING_WITH_THE_FILES_SYSTEM/examples/interacting-fs-1.js`:
 ```js
 'use strict'
 console.log('current filename', __filename)
@@ -22,8 +22,8 @@ console.log('current dirname', __dirname)
 This would output the following:
 ```txt
 $ node interacting-fs-1.js 
-current filename /home/andres/code/andresmunozit/node-js-application-development-lfw211/13_INTERACTING_WITH_THE_FILE_SYSTEM/examples/interacting-fs-1.js
-current dirname /home/andres/code/andresmunozit/node-js-application-development-lfw211/13_INTERACTING_WITH_THE_FILE_SYSTEM/examples
+current filename /node-js-application-development-lfw211/13_INTERACTING_WITH_THE_FILE_SYSTEM/examples/interacting-fs-1.js
+current dirname /node-js-application-development-lfw211/13_INTERACTING_WITH_THE_FILE_SYSTEM/examples
 
 ```
 
@@ -31,11 +31,11 @@ Even if we run the `interacting-fs-1.js` file from a different directory, the ou
 same:
 ```txt
 $ pwd
-/home/andres/code/andresmunozit/node-js-application-development-lfw211/13_INTERACTING_WITH_THE_FILE_SYSTEM
+/node-js-application-development-lfw211/13_INTERACTING_WITH_THE_FILE_SYSTEM
 
 $ node examples/interacting-fs-1.js 
-current filename /home/andres/code/andresmunozit/node-js-application-development-lfw211/13_INTERACTING_WITH_THE_FILE_SYSTEM/examples/interacting-fs-1.js
-current dirname /home/andres/code/andresmunozit/node-js-application-development-lfw211/13_INTERACTING_WITH_THE_FILE_SYSTEM/examples
+current filename /node-js-application-development-lfw211/13_INTERACTING_WITH_THE_FILE_SYSTEM/examples/interacting-fs-1.js
+current dirname /node-js-application-development-lfw211/13_INTERACTING_WITH_THE_FILE_SYSTEM/examples
 
 ```
 
@@ -57,7 +57,7 @@ console.log('out file:', join(__dirname, 'out.txt'))
 ```
 ```txt
 $ node interacting-fs-2.js 
-out file: /home/andres/code/andresmunozit/node-js-application-development-lfw211/13_INTERACTING_WITH_THE_FILE_SYSTEM/examples/out.txt
+out file: /node-js-application-development-lfw211/13_INTERACTING_WITH_THE_FILE_SYSTEM/examples/out.txt
 
 ```
 
@@ -97,19 +97,19 @@ console.log('filename extname:', extname(__filename))
 ```
 
 Given an execution path of
-`/home/andres/code/andresmunozit/node-js-application-development-lfw211/13_INTERACTING_WITH_THE_FILE_SYSTEM/examples/interacting-fs-3.js`
+`/node-js-application-development-lfw211/13_INTERACTING_WITH_THE_FILE_SYSTEM/examples/interacting-fs-3.js`
 the following output will be the result on POSIX (e.g. non-Windows) systems:
 ```txt
 $ node interacting-fs-3.js 
 filename parsed: {
   root: '/',
-  dir: '/home/andres/code/andresmunozit/node-js-application-development-lfw211/13_INTERACTING_WITH_THE_FILE_SYSTEM/examples',
+  dir: '/node-js-application-development-lfw211/13_INTERACTING_WITH_THE_FILE_SYSTEM/examples',
   base: 'interacting-fs-3.js',
   ext: '.js',
   name: 'interacting-fs-3'
 }
 filename basename: interacting-fs-3.js
-filename dirname: /home/andres/code/andresmunozit/node-js-application-development-lfw211/13_INTERACTING_WITH_THE_FILE_SYSTEM/examples
+filename dirname: /node-js-application-development-lfw211/13_INTERACTING_WITH_THE_FILE_SYSTEM/examples
 filename extname: .js
 
 ```
@@ -657,9 +657,9 @@ Metadata about files can be obtained with the following methods:
 - `fs.stat`, `fs.statSync`, `fs/promises stat`
 - `fs.lstat`, `fs.lstatSync`, `fs/promises lstat`
 
-Returns `fs.Stat` for file metadata. `stat` follows symbolic links, while `lstat` gets metadata for
-the link itself. Use `fs.Stat` properties and methods to analyze metadata. We'll explore
-distinguishing files from directories and delve into available time stats:
+`fs.stat` returns an `fs.Stat` instance, which has various properties and methods to analyze file
+metadata. `stat` follows symbolic links, while `lstat` gets metadata for the link itself. We'll
+explore distinguishing files from directories and delve into available time stats.
 
 We already know the sync vs. async API trade-offs. So for these examples we'll use `fs.statSync`.
 
@@ -788,17 +788,21 @@ $ node -e "fs.unlinkSync('test')"
 `fs.watch` reflects the OS's low-level events, providing limited event detail. For a clearer
 understanding, opt for the `chokidar` library or manually track file data.
 
-Maintain a file list to detect additions and removals. To differentiate between content and status
-updates, compare Modified and Change times. Equal times indicate content updates, while differing
-times signal status updates. We can see an example bellow:
+Next we'll maintain a file list to detect additions and removals. To differentiate between content
+and status updates, compare Modified and Change times. Equal times indicate content updates, while
+differing times signal status updates. We can see an example bellow:
 ```js
+// 13_INTERACTING_WITH_THE_FILE_SYSTEM/examples/interacting-fs-18/example.js
 'use strict'
 const { join, resolve } = require('path')
 const { watch, readdirSync, statSync } = require('fs')
 
 // Get the current working directory; `process.cwd()` is a common alternative.
 const cwd = resolve('.')
-// Initialize a unique list (`Set`) with files from the current directory.
+
+// Initializes a `Set` with the list of filenames currently in the directory.
+// `readdirSync('.')` synchronously retrieves filenames from the current directory.
+// Possible output: Set { 'file1.txt', 'file2.js', 'folder1', ... }
 const files = new Set(readdirSync('.'))
 watch('.', (evt, filename) => {
     try {
@@ -889,7 +893,7 @@ const out = join(__dirname, 'out.txt')
 
 function exercise() {
 	// TODO read the files in the project folder
-	// and write the to the out.txt file
+	// and write them to the out.txt file
 }
 
 exercise()
@@ -928,6 +932,9 @@ const { join, basename } = require('path')
 const fs = require('fs') // Note that the entire `fs` API is imported
 const project = join(__dirname, 'project')
 try { fs.rmdirSync(project, { recursive: true }) } catch (err) { }
+
+// Creates an array of length 5 and maps each element to a random string path.
+// `join` appends the generated random string to the 'project' directory path.
 const files = Array.from(Array(5), () => {
 	return join(project, Math.random().toString(36).slice(2))
 })
@@ -941,7 +948,7 @@ function exercise() {
 	// Read the files in the `project` folder
 	const files = fs.readdirSync(project)
 
-	// Write the to the `out.txt` file
+	// Write them to the `out.txt` file
 	fs.writeFileSync(out, files.join(','))
 }
 
@@ -1043,3 +1050,119 @@ preexisting files status is updated via a permissions change, the answer variabl
 set to that preexisting file.
 
 If implemented correctly the process will output: `passed!`
+
+#### Solution
+```js
+// 13_INTERACTING_WITH_THE_FILE_SYSTEM/labs/labs-2/index.js
+'use strict'
+const assert = require('assert')
+const { join } = require('path')
+const fs = require('fs')
+const fsp = require('fs/promises')
+const { setTimeout: timeout } = require('timers/promises')
+const project = join(__dirname, 'project')
+
+try { fs.rmdirSync(project, { recursive: true }) } catch (err) {
+    console.error(err)
+}
+fs.mkdirSync(project)
+
+let answer = ''
+
+async function writer() {
+    const { open, chmod, mkdir } = fsp
+    const pre = join(project, Math.random().toString(36).slice(2))
+    const handle = await open(pre, 'w')
+    await handle.close()
+    await timeout(500)
+    exercise(project)
+    const file = join(project, Math.random().toString(36).slice(2))
+    const dir = join(project, Math.random().toString(36).slice(2))
+    const add = await open(file, 'w')
+    await add.close()
+    await mkdir(dir)
+    await chmod(pre, 0o444)
+    await timeout(500)
+    assert.strictEqual(
+        answer,
+        file,
+        'answer should be the file (not folder) which was added'
+    )
+    console.log('passed!')
+    process.exit()
+}
+
+writer().catch((err) => {
+    console.error(err)
+    process.exit(1)
+})
+
+
+// Solution
+function exercise(project) {
+    const files = new Set(fs.readdirSync(project))
+    fs.watch(project, (evt, filename) => {
+        try {
+            const filepath = join(project, filename)
+            const stat = fs.statSync(filepath)
+
+            // TODO - only set the answer variable if the filepath
+            // is both newly created AND does not point to a directory
+            if (!stat.isDirectory() && !files.has(filename)) {
+                answer = filepath
+            }
+        } catch (err) {
+
+        }
+    })
+}
+
+```
+```txt
+$ node index.js
+Error: ENOENT: no such file or directory, lstat '/node-js-application-development-lfw211/13_INTERACTING_WITH_THE_FILE_SYSTEM/labs/labs-2/project'
+    at Object.lstatSync (node:fs:1593:3)
+    at __node_internal_ (node:internal/fs/utils:821:8)
+    at Object.rmdirSync (node:fs:1216:15)
+    at Object.<anonymous> (/node-js-application-development-lfw211/13_INTERACTING_WITH_THE_FILE_SYSTEM/labs/labs-2/index.js:9:10)
+    at Module._compile (node:internal/modules/cjs/loader:1254:14)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1308:10)
+    at Module.load (node:internal/modules/cjs/loader:1117:32)
+    at Module._load (node:internal/modules/cjs/loader:958:12)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:81:12)
+    at node:internal/main/run_main_module:23:47 {
+  errno: -2,
+  syscall: 'lstat',
+  code: 'ENOENT',
+  path: '/node-js-application-development-lfw211/13_INTERACTING_WITH_THE_FILE_SYSTEM/labs/labs-2/project'
+}
+(node:62029) [DEP0147] DeprecationWarning: In future versions of Node.js, fs.rmdir(path, { recursive: true }) will be removed. Use fs.rm(path, { recursive: true }) instead
+(Use `node --trace-deprecation ...` to show where the warning was created)
+passed!
+
+```
+
+**Note**: The program attempts to delete the `project` directory, and will print an error the first
+time it will run because that directory doesn't exist yet. However the program keeps running and we
+can see the output `passed!` at the end of the execution.
+
+## Knowledge Check
+### Question 13.1
+When an `fs` module function name ends with the word Sync, what does this signify?
+- A. That the operation will block the process from executing any more code until the operation has
+completed [x]
+- B. That the process will synchronize with the file system while code continues to execute
+- C. That the operation will return a promise the resolves synchronously
+
+### Question 13.2
+What file stats must be used to verify that a file has been freshly created?
+- A. birthtime, atime, ctime
+- B. ctime
+- C. birthtime, ctime, mtime [x]
+
+### Question 13.3
+Given a stats object named `stat` how can you check if the path that the stat object represents is a
+directory?
+- A. `stat.isDir`
+- B. `stat.isDirectory()` [x]
+- C. `stat.ino`

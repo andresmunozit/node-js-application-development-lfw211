@@ -4,6 +4,9 @@ const { join, basename } = require('path')
 const fs = require('fs') // Note that the entire `fs` API is imported
 const project = join(__dirname, 'project')
 try { fs.rmdirSync(project, { recursive: true }) } catch (err) { }
+
+// // Creates an array of length 5 and maps each element to a random string path.
+// `join` appends the generated random string to the 'project' directory path.
 const files = Array.from(Array(5), () => {
 	return join(project, Math.random().toString(36).slice(2))
 })

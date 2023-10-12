@@ -54,8 +54,8 @@ b30d137c2b1ba7769a972ac6b2d7f4e5068fb344f521a46b089bb19b27ab81838471395aa1eb9b08
 
 ```
 
-Let's pipe the `process.stdin` stream to the uppercase stream from the previous chapter, then we'll
-pipe the resulting stream to the `process.stdout` stream:
+Let's pipe the `process.stdin` readable stream to the `uppercase` transform stream from the previous
+chapter, then we'll pipe the resulting stream to the `process.stdout` writable stream:
 ```js
 // 14_PROCESS_&_OPERATING_SYSTEM/examples/process-os-3.js
 'use strict'
@@ -121,8 +121,8 @@ piped to
 ```
 
 If we execute our code without piping to it, the process will be directly connected to the terminal.
-This will allow us to type the input into our process. The process input will be transformed to
-uppercase and then piped to the process output:
+This will allow us typing the input into our process using the terminal. The process input will be
+transformed to uppercase and then piped to the process output:
 ```txt
 $ node process-os-4.js
 terminal
@@ -164,17 +164,252 @@ const createUppercaseStream = () => {
 }
 
 const uppercase = createUppercaseStream()
+
+// In this example, the `process.stdout` writable stream represents the `out.txt` file, that's why
+// the data is not printed in the terminal
 process.stdin.pipe(uppercase).pipe(process.stdout)
 
 ```
 
 Now let's run the command redirecting to `out.txt` as before:
 ```txt
+# "piped to" is printed to the console even though output is sent to out.txt
 $ node -p "crypto.randomBytes(100).toString('hex')" | node process-os-5.js > out.txt 
 piped to
 
 $ node -p "fs.readFileSync('out.txt').toString()"
 595C60375DE0437E097DC4D57482008DCB84F3EDA66D7C268333125D5D8CD8CA8FA0D24FB9EF70AD6E345BA7F1405279055F
 853FA267F4B5FAB7CA65E947EFAC3C9438012DBF6BC7DC9F2A376CE330D894EDAF3CEBDA8815AA70495037B6557A58B59C4B
+
+```
+
+Note that `process.STDOUT` and `STDERR` are separate output devices, however by default both print
+to the terminal. Since `console.log` prints by default to `STDOUT` and `console.error` prints by
+default to `STDERR`, we can see both in the terminal.
+
+The `console` methods automatically adds a newline (\n) to the input string, that's not the case
+when we write directly to `process.stderr` or `process.stdout`. So we added a `\n` to the strings
+that can be writen.
+
+Let's update the example for using `console.error` instead piping to `process.stdout`, and
+demonstrate that indeed `console.error` automaticaly adds a newline at the end, so the result will
+be the same:
+```js
+// 14_PROCESS_&_OPERATING_SYSTEM/examples/process-os-6.js
+'use strict'
+console.error(process.stdin.isTTY ? 'terminal' : 'piped to')
+const { Transform } = require('stream')
+const createUppercaseStream = () => {
+    return new Transform({
+        transform(chunk, enc, next) {
+            const uppercased = chunk.toString().toUpperCase()
+            next(null, uppercased)
+        }
+    })
+}
+const uppercase = createUppercaseStream()
+process.stdin.pipe(uppercase).pipe(process.stdout)
+
+```
+```txt
+$ node -p "crypto.randomBytes(100).toString('hex')" | node process-os-6.js > out.txt 
+piped to
+
+$ node -p "fs.readFileSync('out.txt').toString()" 
+F6B2D1711C20D373E2916FA91CDE1603A13D7F3AA972B67C9E808F11B657E893BFC17CD3258B4F698172C3EBA7DE16F76AF3
+DDCB1D95647ED0B96970D742FC208ACF4CCFBF660C11D6511B5743EAC2F28B9A10B69D19D988E59981A04751D9144488BDE2
+
+```
+
+While it's beyond of the scope of Node, is useful to know that if we want to redirect the `STDERR`
+to another file, using the terminal, we can use `2>`:
+```txt
+$ node -p "crypto.randomBytes(100).toString('hex')" | node process-os-6.js > out.txt 2> err.txt
+
+$ node -p "fs.readFileSync('err.txt').toString()"
+piped to
+
+$ node -p "fs.readFileSync('out.txt').toString()"
+D442263687C5E1CFD92A36739350671F0AD282F56E81454E05D1FC0F6511875440FC522C6A403C9E75C4C8241E7CC7CA0D98
+16CF50681A4D80BB1E8C9E805F62C1C641475A16FE6B878217354606E5F529D5076CDD9D6C05A28E6919B2462270CBC1E9E2
+
+```
+
+On Windows and POSIX systems (Linux, macOS), file descriptors are numbered handles representing
+system I/O channels. The descriptor 2 universally identifies `STDERR`, giving rise to the `2>`
+redirect syntax. In Node.js, `process.stderr.fd` holds the value 2, while `process.stdout.fd` is 1,
+emphasizing their roles in handling output. You can illustrate this concept in Node using the `fs`
+module:
+```js
+// example
+'use strict'
+const fs = require('fs')
+const myStdout = fs.createWriteStream(null, {fd: 1})
+const myStderr = fs.createWriteStream(null, {fd: 2})
+myStdout.write('stdout stream')
+myStderr.write('stderr stream')
+
+```
+
+However, despite this example, always prefer using `process.stdout` and `process.stderr`. They're
+tailored with specialized features, ensuring optimized performance and behavior in Node
+applications.
+
+## Exiting
+When a process has nothing to do, it exits by itself. For instance, let's look at this code:
+```js
+// 14_PROCESS_&_OPERATING_SYSTEM/examples/process-os-7.js
+console.log('exit after this')
+
+```
+```txt
+$ node process-os-7.js 
+exit after this
+
+```
+
+In Node.js, certain APIs possess **active handles** which are references that prevent the process
+from auto-exiting. For example, `net.createServer` establishes an active handle, allowing the server
+to await requests. Likewise, timeouts and intervals maintain active handles to ensure the process
+remains open:
+```js
+// 14_PROCESS_&_OPERATING_SYSTEM/examples/process-os-8.js
+'use strict'
+setInterval(() => {
+    console.log('this is keeping the process open')
+}, 500)
+
+```
+```txt
+$ node process-os-8.js 
+this is keeping the process open
+this is keeping the process open
+this is keeping the process open
+this is keeping the process open
+this is keeping the process open
+this is keeping the process open
+this is keeping the process open
+this is keeping the process open
+this is keeping the process open
+^C
+
+```
+
+To force a process to exit at any time we can call `process.exit`:
+```js
+// 14_PROCESS_&_OPERATING_SYSTEM/examples/process-os-9.js
+'use strict'
+setInterval(() => {
+    console.log('this interval is keeping the process open')
+}, 500)
+setTimeout(() => {
+    console.log('exit after this')
+    process.exit()
+}, 1750)
+
+```
+
+This will cause the process to exit after the function passed to `setInterval` has been called three
+times:
+```txt
+$ node process-os-9.js 
+this interval is keeping the process open
+this interval is keeping the process open
+this interval is keeping the process open
+exit after this
+
+$ echo $? 
+0
+
+```
+
+Exit status codes indicate a process's termination status. Universally, a code of "0" signifies
+successful execution. On Linux/macOS, check with echo `$?`. For Windows, use echo `%ErrorLevel%` in
+`cmd.exe` or `$LastExitCode` in PowerShell. Different platforms might interpret other codes
+uniquely.
+
+You can pass an exit code with `process.exit`. While any non-zero code implies an error, using "1"
+generally denotes a failure. On Windows, this technically translates to "Incorrect function", but
+it's widely understood as a generic error. Let's modify our code to pass `process.exit` the code 1:
+```js
+// 14_PROCESS_&_OPERATING_SYSTEM/examples/process-os-10.js
+setInterval(() => {
+    console.log('this interval is keeping the process open')
+}, 500)
+setTimeout(() => {
+    console.log('exit after this')
+    // Now we pass 1 to `process.exit`
+    process.exit(1)
+}, 1750)
+
+```
+```txt
+$ node process-os-10.js
+this interval is keeping the process open
+this interval is keeping the process open
+this interval is keeping the process open
+exit after this
+
+$ echo $?
+1
+
+```
+
+The exit code can also be set independently to `process.exitCode`. Making the following change in
+our code, the output will be the same:
+```js
+// 14_PROCESS_&_OPERATING_SYSTEM/examples/process-os-11.js
+setInterval(() => {
+    console.log('this interval is keeping the process open')
+    process.exitCode = 1
+}, 500)
+setTimeout(() => {
+    console.log('exit after this')
+    process.exit()
+}, 1750)
+
+```
+```txt
+$ node process-os-11.js
+this interval is keeping the process open
+this interval is keeping the process open
+this interval is keeping the process open
+exit after this
+
+$ echo $?              
+1
+
+```
+
+The `exit` event can also be used to detect when a process is closing and perform any final actions
+using a handler function. However, no asynchronous work can be done in that event handler because
+the process is exiting:
+```js
+// 14_PROCESS_&_OPERATING_SYSTEM/examples/process-os-12.js
+'use strict'
+setInterval(() => {
+    console.log('this interval is keeping the process open')
+    process.exitCode = 1
+}, 500)
+setTimeout(() => {
+    console.log('exit after this')
+    process.exit()
+}, 1750)
+process.on('exit', (code) => {
+    console.log('exiting with code', code)
+    setTimeout(() => {
+        // No asynchronous work can be done because the process is exiting
+        console.log('this will never happen')
+    }, 1)
+})
+
+```
+```txt
+$ node process-os-12.js
+this interval is keeping the process open
+this interval is keeping the process open
+this interval is keeping the process open
+exit after this
+exiting with code 1
 
 ```

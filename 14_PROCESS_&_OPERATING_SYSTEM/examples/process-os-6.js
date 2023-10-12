@@ -1,6 +1,5 @@
 'use strict'
-// We replace the `console.log` call with a write to the `process.stderr` stream
-process.stderr.write(process.stdin.isTTY ? 'terminal\n' : 'piped to\n')
+console.error(process.stdin.isTTY ? 'terminal' : 'piped to')
 const { Transform } = require('stream')
 const createUppercaseStream = () => {
     return new Transform({
@@ -10,7 +9,5 @@ const createUppercaseStream = () => {
         }
     })
 }
-
-// In this example, the `process.stdout` writable stream represents the `out.txt` file
 const uppercase = createUppercaseStream()
 process.stdin.pipe(uppercase).pipe(process.stdout)

@@ -183,17 +183,17 @@ $ node -p "fs.readFileSync('out.txt').toString()"
 
 ```
 
-Note that `process.STDOUT` and `STDERR` are separate output devices, however by default both print
-to the terminal. Since `console.log` prints by default to `STDOUT` and `console.error` prints by
-default to `STDERR`, we can see both in the terminal.
+Note that `STDOUT` and `STDERR` are separate output devices and *by default* both print
+to the terminal. `console.log` prints by default to `STDOUT` and `console.error` prints by
+default to `STDERR`.
 
-The `console` methods automatically adds a newline (\n) to the input string, that's not the case
-when we write directly to `process.stderr` or `process.stdout`. So we added a `\n` to the strings
-that can be writen.
+The `console` methods automatically adds a newline (`\n`) to the input, that's not the case when we
+write directly to `process.stderr` or `process.stdout`. That's why we add `\n` when writing to
+`process.sterr`. in our previous example.
 
-Let's update the example for using `console.error` instead piping to `process.stdout`, and
-demonstrate that indeed `console.error` automaticaly adds a newline at the end, so the result will
-be the same:
+Let's update the example for using `console.error` instead of writing to the `process.stderr` stream
+and demonstrate that indeed `console.error` automaticaly adds a newline at the end, so the result
+will be the same:
 ```js
 // 14_PROCESS_&_OPERATING_SYSTEM/examples/process-os-6.js
 'use strict'
@@ -270,7 +270,7 @@ exit after this
 
 In Node.js, certain APIs possess **active handles** which are references that prevent the process
 from auto-exiting. For example, `net.createServer` establishes an active handle, allowing the server
-to await requests. Likewise, timeouts and intervals maintain active handles to ensure the process
+to await requests. Likewise, *timeouts and intervals* maintain active handles to ensure the process
 remains open:
 ```js
 // 14_PROCESS_&_OPERATING_SYSTEM/examples/process-os-8.js
@@ -411,5 +411,77 @@ this interval is keeping the process open
 this interval is keeping the process open
 exit after this
 exiting with code 1
+
+```
+
+## Process Info
+The `process` object also contains other pieces of information about the process, such as:
+- `process.cwd()`: the current working directory, that is the folder in which the process was
+executed in
+- `process.chdir()`: changes the current working directory in a Node.js process.
+For example, `process.chdir('/tmp')` switches the directory to `/tmp`
+- `process.id`: shows the PID.
+- `process.platform`: the process platform indicates the host OS (both `process.platform` and
+`os.platform()` in Node.js return the same thing).
+
+|process.platform|Operating System|
+|:----|:----|
+|`aix`|IBM AIX|
+|`darwin`|macOS|
+|`freebsd`|FreeBSD|
+|`linux`|Linux|
+|`openbsd`|OpenBSD|
+|`sunos`|Solaris / Illumos / SmartOS|
+|`win32`|Windows|
+|`android`|Android| experimental|
+
+In our case:
+```txt
+$ node -p process.platform 
+linux
+
+```
+
+- `process.env`: represents an object containing environment variables. For instance, a `KEY=value`
+environment variable translates to `{ KEY: 'value' }` in the object:
+```txt
+$ node -p process.env 
+{
+  USER: 'user',
+  HOME: '/home/user',
+  OLDPWD: '/node-js-application-development-lfw211/14_PROCESS_&_OPERATING_SYSTEM/examples',
+  DESKTOP_SESSION: 'ubuntu',
+  # truncated
+}
+
+```
+
+`process.env` dynamically interacts with the OS to form an object from environment variables.
+Although resembling a JS object, modifying values like `process.env.FOO='my env var'`, impacts just
+the Node process. It neither instantaneously reflects OS changes nor supports conventional object
+enumeration.
+
+`process.env.PWD` also contains the current working directory, but after using `process.chdir`, only
+`process.cwd()` updates to the new path.
+
+## Process Stats
+The `process` object has methods which allow us to query resource usage.
+
+### `process.uptime`
+Is the amount of seconds (with 9 decimal places), that the *process* has been executing for:
+```js
+// 14_PROCESS_&_OPERATING_SYSTEM/examples/process-os-14.js
+'use strict'
+console.log('Process Uptime', process.uptime())
+setTimeout(() => {
+    console.log('Process Uptime', process.uptime())
+}, 1000)
+
+
+```
+```txt
+$ node process-os-14.js 
+Process Uptime 0.017067214
+Process Uptime 1.019615477
 
 ```

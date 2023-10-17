@@ -31,7 +31,7 @@ initialized
 ```
 
 If we attempt to use the command line to pipe the output from the random byte command into our
-process, nothing will happen:
+process, nothing will change:
 ```txt
 $ node -p "crypto.randomBytes(100).toString('hex')" | node process-os-1.js
 initialized
@@ -191,9 +191,9 @@ The `console` methods automatically adds a newline (`\n`) to the input, that's n
 write directly to `process.stderr` or `process.stdout`. That's why we add `\n` when writing to
 `process.sterr`. in our previous example.
 
-Let's update the example for using `console.error` instead of writing to the `process.stderr` stream
-and demonstrate that indeed `console.error` automaticaly adds a newline at the end, so the result
-will be the same:
+Let's update the example for using `console.error` instead of writing `process.stderr`, and
+demonstrate that indeed `console.error` automaticaly adds a newline at the end of the input string,
+so the result will be the same:
 ```js
 // 14_PROCESS_&_OPERATING_SYSTEM/examples/process-os-6.js
 'use strict'
@@ -226,20 +226,23 @@ to another file, using the terminal, we can use `2>`:
 ```txt
 $ node -p "crypto.randomBytes(100).toString('hex')" | node process-os-6.js > out.txt 2> err.txt
 
-$ node -p "fs.readFileSync('err.txt').toString()"
-piped to
-
 $ node -p "fs.readFileSync('out.txt').toString()"
 D442263687C5E1CFD92A36739350671F0AD282F56E81454E05D1FC0F6511875440FC522C6A403C9E75C4C8241E7CC7CA0D98
 16CF50681A4D80BB1E8C9E805F62C1C641475A16FE6B878217354606E5F529D5076CDD9D6C05A28E6919B2462270CBC1E9E2
 
+$ node -p "fs.readFileSync('err.txt').toString()"
+piped to
+
 ```
 
-On Windows and POSIX systems (Linux, macOS), file descriptors are numbered handles representing
-system I/O channels. The descriptor 2 universally identifies `STDERR`, giving rise to the `2>`
-redirect syntax. In Node.js, `process.stderr.fd` holds the value 2, while `process.stdout.fd` is 1,
-emphasizing their roles in handling output. You can illustrate this concept in Node using the `fs`
-module:
+> POSIX (Portable Operating System Interface) is a set of standards for ensuring compatibility among
+operating systems. Linux and macOS are both examples of POSIX-compliant systems.
+
+
+In both Windows and POSIX systems (like Linux and macOS), file descriptors are labels for system I/O
+channels. For example, the number 2 always means STDERR, leading to the 2> redirect command. In
+Node.js, this is reflected with `process.stderr.fd` being 2 and `process.stdout.fd` being 1. This
+can be showcased using Node's fs module:
 ```js
 // example
 'use strict'
@@ -268,10 +271,10 @@ exit after this
 
 ```
 
-In Node.js, certain APIs possess **active handles** which are references that prevent the process
-from auto-exiting. For example, `net.createServer` establishes an active handle, allowing the server
-to await requests. Likewise, *timeouts and intervals* maintain active handles to ensure the process
-remains open:
+In Node.js, certain APIs possess *active handles* which are references that prevent the process
+from auto-exiting. For example, `net.createServer` establishes an *active handle*, allowing the
+server to await requests. Likewise, *timeouts and intervals* maintain active handles to ensure the
+process remains open:
 ```js
 // 14_PROCESS_&_OPERATING_SYSTEM/examples/process-os-8.js
 'use strict'
@@ -421,8 +424,8 @@ executed in
 - `process.chdir()`: changes the current working directory in a Node.js process.
 For example, `process.chdir('/tmp')` switches the directory to `/tmp`
 - `process.id`: shows the PID.
-- `process.platform`: the process platform indicates the host OS (both `process.platform` and
-`os.platform()` in Node.js return the same thing).
+- `process.platform`: the process platform indicates the host Operating System (both
+`process.platform` and `os.platform()` return the same thing).
 
 |process.platform|Operating System|
 |:----|:----|
@@ -467,8 +470,9 @@ enumeration.
 ## Process Stats
 The `process` object has methods which allow us to query resource usage.
 
-### `process.uptime`
-Is the amount of seconds (with 9 decimal places), that the *process* has been executing for:
+### `process.uptime()`
+Process uptime measures the duration, in seconds (precise to nine decimal places), for which a
+specific process has been running. It's not the same that the machine uptime. Let's see an example:
 ```js
 // 14_PROCESS_&_OPERATING_SYSTEM/examples/process-os-14.js
 'use strict'
@@ -483,5 +487,60 @@ setTimeout(() => {
 $ node process-os-14.js 
 Process Uptime 0.017067214
 Process Uptime 1.019615477
+
+```
+
+In this case the process has been running for around 1 second, which is the duration of the timeout
+plus a decimal amount of time.
+
+### `process.cpuUsage()`
+Returns a CPU usage object containing:
+- `user`: Amount of CPU time (in microseconds) used by the Node.js *process* itself.
+- `system`: Amount of CPU time (in microseconds) consumed by *system* tasks related to the Node.js
+process.
+
+Let's analyze the next example:
+```js
+// 14_PROCESS_&_OPERATING_SYSTEM/examples/process-os-15.js
+'use strict'
+const outputStats = () => {
+    const uptime = process.uptime()
+    const { user, system } = process.cpuUsage()
+    // We print the following so we can compare the `uptime` with the other stats
+    console.log(uptime, user, system, (user + system)/1000000)  // the last input is the total CPU
+                                                                // usage transformed from 
+                                                                // microseconds to seconds
+}
+
+// We print the stats when the process starts
+outputStats()
+
+setTimeout(() => {
+    // We print the stats again after 500ms
+    outputStats()
+    const now = Date.now()
+    // Make the CPU do some work for roughly 5 seconds:
+    while(Date.now() - now < 5000){} // `Date.now()` returns the number of millisecods from EPOCH
+    // Print the stats one last time
+    outputStats()
+}, 500)
+
+```
+```txt
+# output:
+# uptime (seconds), user (microseconds), system (microseconds), total (seconds)
+
+$ node process-os-15.js
+0.015029229 8671 13007 0.021678
+0.5190259 11985 13007 0.024992  # CPU uptime jumps to roughly 500ms because of the timeout set, the
+                                # rest of the time (0.019...) is execution time used to outputting
+                                # stats  and setting the timeout. We can see that the CPU usage only
+                                # increased by 0.003 seconds, because the process was idling during
+                                # the timeout.
+
+5.518936109 5009168 16003 5.025171  # Note that the CPU usage significantly increases on the third
+                                    # call to `outputStats`. This is because before that call the
+                                    # `Date.now` function is called repeatedly in a while loop until
+                                    # 5000 milliseconds have passed.
 
 ```

@@ -491,7 +491,8 @@ Process Uptime 1.019615477
 ```
 
 In this case the process has been running for around 1 second, which is the duration of the timeout
-plus a decimal amount of time.
+plus a decimal amount of time due to other operations like `console.log` and `setTimeout`
+configuration.
 
 ### `process.cpuUsage()`
 Returns a CPU usage object containing:
@@ -534,7 +535,7 @@ $ node process-os-15.js
 0.015029229 8671 13007 0.021678
 0.5190259 11985 13007 0.024992  # CPU uptime jumps to roughly 500ms because of the timeout set, the
                                 # rest of the time (0.019...) is execution time used to outputting
-                                # stats  and setting the timeout. We can see that the CPU usage only
+                                # stats and setting the timeout. We can see that the CPU usage only
                                 # increased by 0.003 seconds, because the process was idling during
                                 # the timeout.
 
@@ -544,3 +545,307 @@ $ node process-os-15.js
                                     # 5000 milliseconds have passed.
 
 ```
+
+### `process.memoryUsage()`
+Finally, let's look at `process.memoryUsage`:
+```js
+// 14_PROCESS_&_OPERATING_SYSTEM/examples/process-os-16.js
+'use strict'
+// We push the memory usage to `stats` at initialization time
+const stats = [process.memoryUsage()]
+
+let iterations = 5
+
+while (iterations--) {
+    const arr = []
+    let i = 10000
+    // make the CPU do some work
+    while (i--) {
+        arr.push({[Math.random]: Math.random()})
+    }
+    stats.push(process.memoryUsage())
+}
+console.table(stats)
+
+```
+
+By the way, this is the output format of `memoryUsage`:
+```txt
+$ node -p "process.memoryUsage()"
+{
+  rss: 43253760,
+  heapTotal: 6381568,
+  heapUsed: 5440520,
+  external: 419811,
+  arrayBuffers: 17606
+}
+
+```
+
+All values are in bytes. This is the meaning of each column:
+- **rss (Resident Set Size)**: Represents the RAM used by the process (not includes swap space like
+`heapUsed`).
+- **heapTotal**: The memory reserved for the process; it may grow or shrink over time depending on
+the process's behavior.
+- **heapUsed**: Total memory consumption, including RAM and swap space. As memory demands grow, this
+metric can increase faster than `rss`, indicating a growing reliance on swap space.
+- **external**: Relates to the C layer's memory use. While other metrics increase with each
+iteration, this only sees a growth at index 1, stabilizing after the JavaScript engine initializes.
+- **arrayBuffers**: Memory used by `ArrayBuffers`. In the given context, the value remains constant
+across iterations, indicating no significant change in ArrayBuffer memory consumption.
+
+Let's execute our code. We push the memory usage to `stats` at initialization and then five more
+times after creating 10,000 objects each time. The `console.table` prints the `stats` array in
+table format:
+```txt
+$ node process-os-16.js
+┌─────────┬──────────┬───────────┬──────────┬──────────┬──────────────┐
+│ (index) │   rss    │ heapTotal │ heapUsed │ external │ arrayBuffers │
+├─────────┼──────────┼───────────┼──────────┼──────────┼──────────────┤
+│    0    │ 43253760 │  6119424  │ 5349432  │  408830  │    17606     │
+│    1    │ 45547520 │ 10313728  │ 6417136  │  408870  │    17606     │
+│    2    │ 51118080 │ 10838016  │ 7244320  │  408870  │    17606     │
+│    3    │ 52756480 │ 15818752  │ 8119176  │  408870  │    17606     │
+│    4    │ 55050240 │ 17129472  │ 8659472  │  408870  │    17606     │
+│    5    │ 57180160 │ 17129472  │ 8768696  │  408870  │    17606     │
+└─────────┴──────────┴───────────┴──────────┴──────────┴──────────────┘
+
+```
+
+## System Info
+We can use the `os` module to get information about the Operating System:
+```js
+// 14_PROCESS_&_OPERATING_SYSTEM/examples/process-os-17.js
+'use strict'
+const os = require('os')
+
+console.log('Hostname', os.hostname())
+
+// The logged in user's home directory
+console.log('Home dir', os.homedir())
+
+// The path to the OS temporary directory. The temp folder auto-clears, ideal for short-term files.
+console.log('Temp dir', os.tmpdir())
+
+```
+```txt
+$ node process-os-17.js
+Hostname hostname
+Home dir /home/user
+Temp dir /tmp
+
+```
+
+There are two ways to identify the Operating System with the `os` module:
+```js
+// 14_PROCESS_&_OPERATING_SYSTEM/examples/process-os-18.js
+'use strict'
+const os = require('os')
+
+// `os.platform` returns the host operating system, the same as `process.platform` property
+console.log(os.platform())
+
+// `os.type` gets the the Operating System identifier. On non-Windows systems uses the `uname`
+// command and on Windows systems it uses the `ver` command
+console.log('type', os.type())
+
+```
+
+The output of the previous code on Linux is the following:
+```txt
+$ node process-os-18.js
+platform linux
+type Linux
+
+```
+
+> `uname` prints system information on Linux systems
+
+## System Stats
+Some Operating System stats can also be gathered:
+- **Uptime**: `os.uptime` returns the time that the system has been running in *seconds*
+- **Free memory**: `os.freemem` returns the available system memory in *bytes*
+- **Total memory**: `os.totalmem` returns the total system memory in *bytes*
+
+```js
+// 14_PROCESS_&_OPERATING_SYSTEM/examples/process-os-19.js
+'use strict'
+const os = require('os')
+
+setInterval(() => {
+    console.log('system uptime', os.uptime())
+    console.log('freemem', os.freemem())
+    console.log('totalmem', os.totalmem())
+    console.log()
+}, 1000)
+
+```
+
+```txt
+$ node process-os-19     
+system uptime 622764.78
+freemem 26382471168
+totalmem 33331159040
+
+system uptime 622765.78
+freemem 26381697024
+totalmem 33331159040
+
+system uptime 622766.78
+freemem 26385215488
+totalmem 33331159040
+
+system uptime 622767.79
+freemem 26383962112
+totalmem 33331159040
+
+system uptime 622768.79
+freemem 26407854080
+totalmem 33331159040
+
+^C
+
+```
+
+## Labs
+### Lab 14.1 - Identifying OS and Exiting
+The `labs-1` folder contains an empty `index.js` file and a test.js file. The `test.js` file
+contains the following:
+```js
+// 14_PROCESS_&_OPERATING_SYSTEM/labs/labs-1/test.js
+'use strict'
+const { spawnSync } = require('child_process')
+const assert = require('assert')
+const { status, stdout } = spawnSync(process.argv[0], [__dirname])
+
+assert.notStrictEqual(status, 0, 'must exit with a non-zero code')
+assert.match(stdout.toString(), /^(d|w|l|aix|.+bsd|sunos|gnu)/i, 'must output OS identifier')
+console.log('passed!')
+
+```
+
+In `index.js` use `console.log` to output the operating system identifier. Ensure the process exits
+with a non-zero exit code.
+
+Run node `test.js` to verify whether the task was successfully completed, if it was `node test.js`
+will output passed!.
+
+#### Solution
+```js
+// 14_PROCESS_&_OPERATING_SYSTEM/labs/labs-1/index.js
+const os = require('os')
+
+// `os.type` gets the the Operating System identifier
+console.log(os.type())
+process.exit(1)
+
+```
+```txt
+$ node test.js
+passed!
+
+```
+
+### Lab 14.2 - OS Uptime and Memory
+The `labs-2` folder contains an `index.js` file and a `test.js` file.
+
+The `index.js` file contains the following:
+```js
+'use strict'
+
+setTimeout(() => {
+    console.log() // TODO output uptime of process
+    console.log() // TODO output uptime of OS
+    console.log() // TODO output total system memory
+    console.log() // TODO output total heap memory
+}, 1000)
+
+```
+Follow the TODO comments for each of the `console.log` statements.
+
+To verify the implementation, the test.js file contains the following:
+```js
+// 14_PROCESS_&_OPERATING_SYSTEM/labs/labs-2/test.js
+'use strict'
+const assert = require('assert')
+const os = require('os')
+const { runInThisContext } = require('vm')
+const run = (s) => runInThisContext(Buffer.from(s, 'base64'))
+const { log } = console
+const queue = [
+  (line) => assert.strictEqual(
+    Math.floor(line), 
+    1,
+    'first log line should be the uptime of the process'
+  ),
+  (line) => assert.strictEqual(
+    line, 
+    run('KG9zKSA9PiBvcy51cHRpbWUoKQ==')(os),
+    'second log line should be the uptime of the OS'
+  ),
+  (line) => assert.strictEqual(
+    line, 
+    run('KG9zKSA9PiBvcy50b3RhbG1lbSgp')(os),
+    'third line should be total system memory'
+  ),
+  (line) => assert.strictEqual(
+    line, 
+    run('cHJvY2Vzcy5tZW1vcnlVc2FnZSgpLmhlYXBUb3RhbA=='),
+    'fourth line should be total process memory'
+  )
+]
+console.log = (line) => {
+  queue.shift()(line)
+  if (queue.length === 0) {
+    console.log = log
+    console.log('passed!')
+  }
+}
+require('.')
+
+```
+
+Run node `test.js` to verify whether the task was successfully completed, if it was `node test.js`
+will output passed!.
+
+#### Solution
+```js
+'use strict'
+// Don't forget to import `os`
+const os = require('os') 
+
+setTimeout(() => {
+    console.log(process.uptime()) // TODO output uptime of process
+    console.log(os.uptime()) // TODO output uptime of OS
+    console.log(os.totalmem()) // TODO output total system memory
+    console.log(process.memoryUsage().heapTotal) // TODO output total heap memory
+}, 1000)
+
+```
+```txt
+$ node test.js
+passed!
+
+```
+
+## Knowledge Check
+### Question 14.1
+What exit code is used to indicate success?
+- A. 1
+- B. -1
+- C. 0 [x]
+
+### Question 14.2
+When checking system uptime, what method should be used?
+- A. `process.uptime()`
+- B. `os.uptime()` [x]
+- C. `process.hrtime`
+
+### Question 14.3
+`process.memoryUsage()` returns an object with `rss`, `heapTotal`, `heapUsed` and `external`
+properties. The `rss` property is an acronym that stands for Resident Set Size. What's the
+difference between heap used and Resident Set Size?
+- A. Heap used amount of memory dedicated in RAM, Resident Set Size in the swap space
+- B. Heap used is total memory used within the JavaScript engine, Resident Set Size is total used
+memory in RAM for the process [x]
+- C. Resident Set Size is a percentage of heap used memory stored in RAM

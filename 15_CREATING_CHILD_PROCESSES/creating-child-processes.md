@@ -87,8 +87,9 @@ console.log(output.toString())
 ```
 
 Remember, `execSync` routes the child's `STDERR` to the parent's `STDERR` by default. Therefore,
-when `console.error` writes to `STDERR`, it gets displayed in the terminal. However, since
-`execSync` exclusively captures `STDOUT` and omits `STDERR`, the `output` variable stays empty.
+when `console.error` in the subprocess writes to `STDERR`, it gets displayed in the terminal.
+However, since `execSync` exclusively captures `STDOUT` and omits `STDERR`, the `output` variable
+stays empty:
 ```txt
 $ node child-3.js 
 subprocess stdio output
@@ -102,6 +103,7 @@ If the subprocess exits with a non-zero exit code, the `execSync` function will 
 const { execSync } = require('child_process')
 
 try {
+    // In this case nothing is writen to `STDERR`, instead `execSync` throws
     execSync(`"${process.execPath}" -e "process.exit(1)"`)
 } catch (err) {
     console.error('CAUGHT ERROR:', err)
@@ -306,10 +308,197 @@ Node.js v18.15.0
 
 ```
 
-The `err` argument is no longer null, it's an error object. In case of asynchronous exec, `err.code`
-contains the *exit code* instead of `err.status`, which is an unfortunate API inconsistency. It also
-doesn't contain the `STDOUT` or `STDERR` buffers since they are passed to the callback function.
+The `err` argument is no longer null, it's an error object. In case of asynchronous `exec`,
+`err.code` contains the *exit code* instead of `err.status`, which is an unfortunate API
+inconsistency. It also doesn't contain the `STDOUT` or `STDERR` buffers since they are passed to the
+callback function.
 
 The `err` object also contains two stacks, one for the subprocess followed by a gap and then the
 stack of the parent process. The subprocess `stderr` buffer also contains the error as presented by
 the subprocess.
+
+## `spawn` & `spawnSync` methods
+Both `spawn` and `exec` methods can be used to create child processes. While `execSync` returns a
+buffer containing the subprocess `STDOUT`, `spawnSync` returns an object containing information
+about the process that was spawned.
+
+While `exec` and `execSync` take a full shell command, spawn takes the executable path as the first
+argument and then an array of flags that should be passed to the command as second argument:
+```js
+// 15_CREATING_CHILD_PROCESSES/example/child-8.js
+'use strict'
+const { spawnSync } = require('child_process')
+const result = spawnSync(
+    process.execPath,
+    ['-e', `console.log('subprocess stdio output')`]
+)
+console.log(result)
+
+```
+```txt
+$ node child-8.js 
+{
+  status: 0,
+  signal: null,
+  output: [
+    null,
+    <Buffer 73 75 62 70 72 6f 63 65 73 73 20 73 74 64 69 6f 20 6f 75 74 70 75 74 0a>,
+    <Buffer >
+  ],
+  pid: 78078,
+  stdout: <Buffer 73 75 62 70 72 6f 63 65 73 73 20 73 74 64 69 6f 20 6f 75 74 70 75 74 0a>,
+  stderr: <Buffer >
+}
+
+```
+
+The `result` object has the same properties as the `error` object when `execSync` throws. Both
+`result.stdout` and `result.output[1]` contain a buffer with the subprocess' `STDOUT`. Let's print
+the child process' `STDOUT` to the terminal, which should be `subprocess stdio output`:
+```js
+// 15_CREATING_CHILD_PROCESSES/example/child-9.js
+'use strict'
+const { spawnSync } = require('child_process')
+const result = spawnSync(
+    process.execPath,
+    ['-e', `console.log('subprocess stdio output')`]
+)
+
+// Let's print the content of the `STDOUT` of the subprocess
+// `result.output[1]` contains the same as `result.stdout`
+console.log(result.stdout.toString())
+
+```
+```txt
+$ node child-9.js 
+subprocess stdio output
+
+```
+  
+`spawnSync` differs from `execSync` in that it doesn't throw when the process exits with a non-zero
+exit code. This removes the need for a `try/catch` block
+```js
+// 15_CREATING_CHILD_PROCESSES/example/child-10.js
+'use strict'
+const { spawnSync } = require('child_process')
+const result = spawnSync(process.execPath, ['-e', 'process.exit(1)'])
+console.log(result)
+
+```
+```txt
+$ node child-10.js 
+{
+  status: 1,
+  signal: null,
+  output: [ null, <Buffer >, <Buffer > ],
+  pid: 87443,
+  stdout: <Buffer >,
+  stderr: <Buffer >
+}
+
+```
+
+The `status` property is 1 because of the child's `process.exit(1)`. If an uncaught error occurred
+in the subprocess, `result.stderr` would show the error message, and `status` would also be 1.
+
+Finally, when comparing `exec` to `spawn`, note that `exec` takes a callback, while `spawn` does
+not. However, both return `ChildProcess` instances with `stdin`, `stdout`, and `stderr` streams.
+These instances also extend `EventEmitter`, letting you handle events like `close` to fetch the exit
+code.
+
+Let's take a look to an spawn example:
+```js
+// 15_CREATING_CHILD_PROCESSES/example/child-11.js
+'use strict'
+const { spawn } = require('child_process')
+const sp = spawn(
+    process.execPath,
+    ['-e', `console.log('subprocess stdio output')`]
+)
+
+// `sp.pid` is immediately available so we console it
+console.log('pid is', sp.pid)
+
+// Pipe child's `STDOUT` (readable for the parent) to the parent's `STDOUT`.
+// Note: In the child, `process.stdout` is writable, while in the parent, `sp.stdout` is readable.
+sp.stdout.pipe(process.stdout)
+
+// To get the status code, we listen for a `close` event
+sp.on('close', (status) => {
+    console.log('exit status was', status)
+})
+
+```
+```txt
+$ node child-11.js 
+pid is 94766
+subprocess stdio output
+exit status was 0
+
+```
+
+Let's edit the previous code to throw in the child process:
+```js
+'use strict'
+const { spawn } = require('child_process')
+
+const sp = spawn(
+    process.execPath,
+    ['-e', 'process.exit(1)']
+)
+
+console.log('pid is', sp.pid)
+
+sp.stdout.pipe(process.stdout)
+
+sp.on('close', (status) => {
+    console.log('exit  status was', status)
+})
+
+```
+```txt
+$ node child-12.js 
+pid is 99869
+exit  status was 1
+
+```
+
+There is no second line of output this time, as our code removed any output to `STDOUT`.
+
+The `exec` method doesn't have to take a callback like `execSync`, and it returns a `ChildProcess`
+instance:
+```js
+// 15_CREATING_CHILD_PROCESSES/example/child-13.js
+'use strict'
+const { exec } = require('child_process')
+const sp = exec(
+    `"${process.execPath}" -e "console.log('subprocess stdio output')"`
+)
+
+console.log('pid is', sp.pid)
+
+sp.stdout.pipe(process.stdout)
+
+sp.on('close', (status) => {
+    console.log('exit status was', status)
+})
+
+
+```
+
+This leads to the exact same outcome as the equivalent `spawn` example:
+```txt
+$ node child-13.js 
+pid is 102632
+subprocess stdio output
+exit status was 0
+
+```
+
+In contrast to methods like `exec`, `execSync`, and `spawnSync`, the `spawn` method doesn't buffer
+child process output. While the others halt streaming after reaching 1 mebibyte (or 1024 * 1024
+bytes, which can be adjusted with `maxBuffer`), `spawn` streams indefinitely. This makes `spawn`
+suitable for long-running child processes.
+
+> `spawn` continuously streams child process output without buffering, unlike `exec`, `execSync`,
+and `spawnSync` which can halt after 1 mebibyte; making `spawn` preferred for long-running tasks."

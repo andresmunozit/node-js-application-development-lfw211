@@ -406,7 +406,7 @@ not. However, both return `ChildProcess` instances with `stdin`, `stdout`, and `
 These instances also extend `EventEmitter`, letting you handle events like `close` to fetch the exit
 code.
 
-Let's take a look to an spawn example:
+Let's take a look to an `spawn` example:
 ```js
 // 15_CREATING_CHILD_PROCESSES/example/child-11.js
 'use strict'
@@ -437,7 +437,7 @@ exit status was 0
 
 ```
 
-Let's edit the previous code to throw in the child process:
+Let's exit the process with status 1:
 ```js
 'use strict'
 const { spawn } = require('child_process')
@@ -502,3 +502,96 @@ suitable for long-running child processes.
 
 > `spawn` continuously streams child process output without buffering, unlike `exec`, `execSync`,
 and `spawnSync` which can halt after 1 mebibyte; making `spawn` preferred for long-running tasks."
+
+## Process Configuration
+An options object can be passed to `exec*` and `spawn*` methods. 
+
+By default, a child process inherits the environment variables of the parent process:
+```js
+// 15_CREATING_CHILD_PROCESSES/example/child-14.js
+'use strict'
+const { spawn } = require('child_process')
+
+process.env.A_VAR_WE = 'JUST SET'
+const sp = spawn(process.execPath, ['-p', 'process.env'])
+sp.stdout.pipe(process.stdout)
+
+```
+
+The environment variables of the child process include the parent's variable `A_VAR_WE`:
+```txt
+$ node child-14.js 
+{
+  // ...
+  A_VAR_WE: 'JUST SET'
+}
+
+```
+
+Now let's pass an `env` object via the options object:
+```js
+// 15_CREATING_CHILD_PROCESSES/example/child-15.js
+'use strict'
+
+const { spawn } = require('child_process')
+
+process.env.A_VAR_WE = 'JUST SET'
+
+const sp = spawn(process.execPath, ['-p', 'process.env'], {
+    // We pass an options object with an `env` object
+    env: {SUBPROCESS_SPECIFIC: 'ENV VAR'}
+})
+
+// `sp.stdout` stream will be written from the subprocess, by `node -p process.env`, then we pipe
+// that to the parent's `stdout`
+sp.stdout.pipe(process.stdout)
+
+```
+
+When run, the parent displays the child process' environment variables, which only include system
+defaults (OS dependant), and those specified in the `env` option:
+```
+$ node child-15.js 
+{ SUBPROCESS_SPECIFIC: 'ENV VAR' }
+
+```
+
+Another option when creating child processes is the `cwd` option:
+```js
+'use strict'
+
+// Detect if this process is the child or parent based on the environment variable
+const { IS_CHILD } = process.env
+
+if (IS_CHILD) {
+    // When executed as a child process, log the current working directory and environment
+    console.log('Subprocess cwd:', process.cwd())
+    console.log('env', process.env)
+} else {
+    // For path parsing and extracting file system's root directory
+    const { parse } =  require('path')
+    const { root } = parse(process.cwd())
+
+    // Importing spawn to create a child process
+    const { spawn } = require('child_process')
+
+    // Spawn a child process to execute the same script (this file)
+    const sp = spawn(process.execPath,  [__filename],  {
+        cwd: root, // Set the child process's current working directory to the file system's root
+        env: {IS_CHILD: '1'} // Set environment variable to detect child process in next execution
+    })
+
+    // Pipe child's STDOUT to parent's STDOUT to display logs
+    sp.stdout.pipe(process.stdout)
+}
+
+```
+```txt
+$ node child-16.js 
+Subprocess cwd: /
+env { IS_CHILD: '1' }
+
+```
+
+The cwd and env options can be set for any of the child process methods discussed in the prior
+section, but there are other options that can be set as well:

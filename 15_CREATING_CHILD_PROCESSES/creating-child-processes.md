@@ -595,3 +595,369 @@ env { IS_CHILD: '1' }
 
 The cwd and env options can be set for any of the child process methods discussed in the prior
 section, but there are other options that can be set as well:
+
+## Child STDIO
+Remember, `exec` and `spawn` return a `ChildProcess` instance witch has `stdin`, `stdout` and
+`stderr` streams, representing the I/O of the subprocess. This is the default behavior, but it can
+be altered. Let's start with an example with the default behavior:
+```js
+// 15_CREATING_CHILD_PROCESSES/example/child-17.js
+'use strict'
+const { spawn } = require('child_process')
+const sp = spawn(
+    process.execPath,
+    [
+        '-e',
+        // The process we're spawning writes to `stderr` using `console.error`, and then pipes
+        // `stdin` to `stdout` 
+        `console.error('err output'); process.stdin.pipe(process.stdout)`
+    ],
+    // The `stdio` option is set to expose streams for all three `STDIO` devices. This is the
+    // default.
+    { stdio: ['pipe', 'pipe', 'pipe'] } // The `stdio` array indices match file descriptors: 0 for
+                                        // `STDIN`, 1 for `STDOUT`, and 2 for STDERR.
+)
+
+// In the parent process we pipe the child process' `STDOUT` and `STDERR` to the parent `STDOUT`
+sp.stdout.pipe(process.stdout)
+sp.stderr.pipe(process.stdout)
+
+// By setting `stdio[0]` to its default value of `pipe` (corresponding to `STDIN`), `sp.stdin` is
+// made writable from the parent's perspective.
+sp.stdin.write('this input will become output')
+sp.stdin.end()
+
+```
+```txt
+$ node child-17.js 
+err output
+this input will become output% 
+
+```
+
+For direct piping without data transformation, set the second `stdio` element to `inherit` to use
+the parent's `STDOUT` in the child process:
+```js
+// 15_CREATING_CHILD_PROCESSES/example/child-18.js
+'use strict'
+const { spawn } = require('child_process')
+const sp = spawn(
+    process.execPath,
+    [
+        '-e',
+        `console.error('err output'); process.stdin.pipe(process.stdout)`
+    ],
+    // Set child's `stdout` to inherit from the parent
+    { stdio: ['pipe', 'inherit', 'pipe'] }
+)
+
+// Only pipe child's `stderr`, as `stdout` is already inherited
+sp.stderr.pipe(process.stdout)
+sp.stdin.write('this input will become output')
+sp.stdin.end()
+
+```
+
+This will result in the same output:
+```txt
+$ node child-18.js 
+err output
+this input will become output% 
+
+```
+
+We also can pass streams directly to the `stdio` option:
+```js
+// 15_CREATING_CHILD_PROCESSES/example/child-19.js
+'use strict'
+const { spawn } = require('child_process')
+const sp = spawn(
+    process.execPath,
+    [
+        '-e',
+        `console.error('err output'); process.stdin.pipe(process.stdout)`
+    ],
+    // Set child's stderr directly to the parent's `stdout`
+    { stdio: ['pipe', 'inherit', process.stdout] s}
+)
+
+// Now we don't need to explicitly pipe `sp.stderr` to `process.stdout`
+sp.stdin.write('this input will become output')
+sp.stdin.end()
+
+```
+
+Both `sp.stdout` and `sp.stderr` are set to `null` as they aren't configured to `pipe` in the
+`stdio` option. Yet, the output remains the same due to the third element in `stdio`. Remember, you
+can pass any writable stream to `stdio[1]` or `stdio[2]` (e.g., file stream, network socket, or HTTP
+response).
+```txt
+$ node child-19.js
+err output
+this input will become output%
+
+```
+
+Let's say we want to *ignore* the subprocess `stderr`:
+```js
+// 15_CREATING_CHILD_PROCESSES/example/child-20.js
+'use strict'
+const { spawn } = require('child_process')
+const sp = spawn(
+    process.execPath,
+    [
+        '-e',
+        // Due to the `stdio[2]` configuration, the `console.error` won't generate visible output
+        `console.error('err output'); process.stdin.pipe(process.stdout)`
+    ],
+    // Configuring `stdio[2]` as `ignore` means the subprocess's `STDERR` output is discarded
+    { stdio: ['pipe', 'inherit', 'ignore']}
+)
+
+// Writing to the child process's stdin
+sp.stdin.write('this input will become output\n')
+sp.stdin.end()
+
+```
+```txt
+$ node child-20.js 
+this input will become output
+
+```
+
+The `stdio` option applies the same way to the `child_process.exec` function.
+
+For synchronous variants like `spawnSync` and `execSync`, you can provide input directly using the
+`input` option. As we've seen before, for the asynchronous `spawn` and `exec` methods, you can use
+the `write` method on the returned `ChildProcess` instance to send input to the child's `stdin`:
+```js
+// 15_CREATING_CHILD_PROCESSES/example/child-21.js
+'use strict'
+const { spawnSync } = require('child_process')
+
+// The script we're executing writes to `sterr` with `console.error`, then pipes `stdin` to `stdout`
+spawnSync(
+    process.execPath,
+    [
+        '-e',
+        `console.error('err output'); process.stdin.pipe(process.stdout)`
+    ],
+    {
+        // Providing input directly to the child process
+        input: 'this input will become output\n',
+        // `stdio` configuration. Here, `STDERR` is set to `ignore`, so its output won't be visible
+        stdio: ['pipe', 'inherit', 'ignore']
+    }
+)
+
+```
+```txt
+$ node child-21.js 
+this input will become output
+
+```
+
+## Labs
+
+### Lab 15.1 - Set Child Process Environment Variable
+The `labs-1` folder contains an `index.js`, a `child.js` file and a `test.js` file.
+The `child.js` file contains the following:
+```js
+// labs-june-2023/labs/ch-15/labs-1/child.js
+'use strict'
+const assert = require('assert')
+const clean = (env) => {
+    // Convert filtered [key, value] pairs back into an object.
+    return Object.fromEntries(
+        // Filter keys that start with an underscore or are 'pwd' or 'shlvl'.
+        Object.entries(env).filter(([k]) => !/^(_.*|pwd|shlvl)$/i.test(k))
+    )
+}
+const env = clean(process.env)
+
+assert.strictEqual(env.MY_ENV_VAR, 'is set')
+assert.strictEqual(
+    Object.keys(env).length,
+    1,
+    'child process should have only one env var'
+)
+console.log('passed!')
+
+```
+The code in `child.js` expects that there will be only one environment variable named `MY_ENV_VAR`
+to have the value `is set`. If this is not the case the `assert.strictEqual` method will throw an
+assertion error. In certain scenarios some extra environment variables are added to child processes,
+these are stripped so that there should only ever be one environment variable set in `child.js`,
+which is the `MY_ENV_VAR` environment variable.
+
+The `index.js` file has the following contents:
+```js
+// labs-june-2023/labs/ch-15/labs-1/index.js
+'use strict'
+
+function exercise(myEnvVar) {
+    // TODO return a child process with
+    // a single environment variable set 
+    // named MY_ENV_VAR. The MY_ENV_VAR 
+    // environment variable's value should 
+    // be the value of the myEnvVar parameter 
+    // passed to this exercise function
+}
+
+module.exports = exercise
+
+```
+
+Using any `child_process` method except `execFile` and `execFileSync`, complete the exercise
+function so that it returns a child process that executes the `child.js` file with node.
+
+To check the exercise implementation, run node `test.js`, if successful the process will
+output: `passed!`. If unsuccessful, various assertion error messages will be output to help
+provide hints.
+
+One very useful hint up front is: use `process.execPath` to reference the node executable
+instead of just passing 'node' as string to the `child_process` method.
+
+The contents of the `test.js` file is esoteric, and the need to understand the code is minimal,
+however the contents of `test.js` are shown here for completeness:
+```js
+// labs-june-2023/labs/ch-15/labs-1/test.js
+'use strict'
+const { deserialize: d } = require('v8')
+const { unlinkSync } = require('fs')
+const assert = require('assert')
+const { equal, fail } = assert.strict
+const exercise = require('.')
+const env = freshEnv()
+
+let sp = null
+const value = 'is set [' + Date.now() + ']'
+try {
+    sp = exercise(value)
+    assert(sp, 'exercise function should return the result of a child process method')
+    if (Buffer.isBuffer(sp)) {
+        checkEnv()
+        return
+    }
+} catch (err) {
+    const { status } = err
+    if (status == null) throw err
+    equal(status, 0, 'exit code should be 0')
+    return
+}
+
+if (!sp.on) {
+    equal(sp.status, 0, 'exit code should be 0')
+    checkEnv()
+    return
+}
+
+const timeout = setTimeout(checkEnv, 5000)
+sp.once('exit', (status) => {
+    equal(status, 0, 'exit code should be 0')
+    clearTimeout(timeout)
+    checkEnv()
+})
+
+function checkEnv() {
+    let childEnv = null
+    try {
+        childEnv = loadEnv('./child-env.json')
+    } catch {
+        fail('child process misconfigured (cannot access child-env.json)')
+    }
+    for (let prop in env) if (Object.hasOwn(childEnv, prop)) delete childEnv[prop]
+    equal(childEnv.MY_ENV_VAR, value)
+    equal(
+        Object.keys(childEnv).length,
+        1,
+        'child process should have only one env var'
+    )
+    console.log('passed!')
+}
+
+function freshEnv() {
+    require('child_process').spawnSync(process.execPath, [require.resolve('./child'), 'fresh'], d(Buffer.from('/w9vIgNlbnZvewB7AQ==', 'base64')))
+    return loadEnv('./fresh-env.json')
+}
+
+function loadEnv(str, retry = 0) {
+    try {
+        return require(str)
+    } catch (err) {
+        if (retry > 5) throw err
+        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 500)
+        return loadEnv(str, ++retry)
+    } finally {
+        try { unlinkSync(require.resolve(str)) } catch { /*ignore*/ }
+    }
+}
+
+```
+
+The `test.js` file allows for alternative approaches, once the exercise function has been completed
+with one `child_process` method, re-attempt the exercise with a different `child_process` method.
+
+#### Solution 1
+```js
+// Example code
+'use strict'
+const { spawn } = require('child_process')
+const { join } = require('path')
+
+function exercise(myEnvVar) {
+    // TODO return a child process with
+    // a single environment variable set 
+    // named MY_ENV_VAR. The MY_ENV_VAR 
+    // environment variable's value should 
+    // be the value of the myEnvVar parameter 
+    // passed to this exercise function
+    return spawn(
+        process.execPath,
+        [join(__dirname, 'child.js')],
+        {
+            env: {MY_ENV_VAR: myEnvVar}
+        }
+    )
+}
+
+module.exports = exercise
+
+```
+```
+node test.js
+passed!
+```
+
+#### Solution 2
+```js
+// 15_CREATING_CHILD_PROCESSES/labs/labs-1/index.js
+'use strict'
+const { exec } = require('child_process')
+const { join } = require('path')
+
+function exercise(myEnvVar) {
+    // TODO return a child process with
+    // a single environment variable set 
+    // named MY_ENV_VAR. The MY_ENV_VAR 
+    // environment variable's value should 
+    // be the value of the myEnvVar parameter 
+    // passed to this exercise function
+    return exec(
+        `"${process.execPath}" "${join(__dirname, 'child.js')}"`,
+        // Options object should be the second argument. A callback function, with the format
+        // `(err, stdout, stderr)`, can be the third argument if needed.
+        {
+            env: {MY_ENV_VAR: myEnvVar}
+        }
+    )
+}
+
+module.exports = exercise
+
+```
+```txt
+$ node test.js
+passed!
+
+```

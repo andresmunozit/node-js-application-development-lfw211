@@ -465,8 +465,8 @@ exit  status was 1
 
 There is no second line of output this time, as our code removed any output to `STDOUT`.
 
-The `exec` method doesn't have to take a callback like `execSync`, and it returns a `ChildProcess`
-instance:
+The `exec` command in Node.js can operate without a callback. Additionally, it returns a
+`ChildProcess` instance. Below is an example:
 ```js
 // 15_CREATING_CHILD_PROCESSES/example/child-13.js
 'use strict'
@@ -593,8 +593,8 @@ env { IS_CHILD: '1' }
 
 ```
 
-The cwd and env options can be set for any of the child process methods discussed in the prior
-section, but there are other options that can be set as well:
+The `cwd` and `env` options can be set for any of the child process methods discussed in the prior
+section, but there are other options that can be set as well.
 
 ## Child STDIO
 Remember, `exec` and `spawn` return a `ChildProcess` instance witch has `stdin`, `stdout` and
@@ -925,7 +925,7 @@ module.exports = exercise
 
 ```
 ```
-node test.js
+$ node test.js
 passed!
 ```
 
@@ -961,3 +961,158 @@ $ node test.js
 passed!
 
 ```
+
+### Lab 15.2 - STDIO Redirection
+The labs-2 folder `index.js` file contains the following:
+```js
+// 15_CREATING_CHILD_PROCESSES/labs/labs-2/index.js
+'use strict'
+
+const { spawn } = require('child_process')
+
+function exercise(command, args) {
+    return spawn(command, args)
+}
+
+module.exports = exercise
+
+```
+
+Complete the exercise function so that the returned child process:
+- Has no ability to read `STDIN`.
+- Redirects its `STDOUT` to the parent process' `STDOUT`.
+- Exposes `STDERR` as a readable stream.
+
+The labs-2 folder also contains a `test.js` file.
+
+To verify that the exercise was completed successfully run `node test.js`, if the
+implementation is correct the process will output: `passed!`.
+
+It is unnecessary to understand the contents of the `test.js` file, but the contents of it are as
+follows:
+```js
+// 15_CREATING_CHILD_PROCESSES/labs/labs-2/test.js
+'use strict'
+const exercise = require('.')
+const cp = require('child_process')
+const assert = require('assert')
+const { equal } = assert.strict
+const { SCENARIO } = process.env
+const [node] = process.argv
+
+const stdoutCheck = () => { exercise(node, [`-p`, `'test'`]) }
+const stderrCheck = () => {
+    const sp = exercise(node, [`-e`, `console.error('test')`])
+    if (sp.stderr) sp.stderr.pipe(process.stderr)
+}
+const stdinCheck = () => {
+    exercise(node, [`-e`, `
+      process.stdout.write(Buffer.from([0]))
+      process.stdin.pipe(process.stdout)
+      setTimeout(() => {
+        process.stdout.write(Buffer.from([1]))
+      }, 100)
+  `])
+}
+
+function test(scenario = 0) {
+
+    switch (scenario) {
+        case 1: return stdoutCheck()
+        case 2: return stderrCheck()
+        case 3: return stdinCheck()
+    }
+
+    const s1 = cp.spawnSync(node, [__filename], {
+        env: { SCENARIO: 1 },
+    })
+
+    equal(s1.stdout.toString().trim(), 'test', 'should inherit stdout')
+
+    const s2 = cp.spawnSync(node, [__filename], {
+        env: { SCENARIO: 2 },
+    })
+
+    equal(s2.stderr.toString().trim(), 'test', 'should expose stderr stream')
+
+
+    const s3 = cp.spawnSync(node, [__filename], {
+        input: 'some input',
+        env: { SCENARIO: 3 },
+    })
+
+    equal(s3.stdout.length, 2, 'stdin should be ignored')
+
+    console.log('passed!')
+
+}
+
+test(Number(SCENARIO))
+
+```
+
+#### Solution 1
+```js
+// 15_CREATING_CHILD_PROCESSES/labs/labs-2/index.js
+'use strict'
+
+const { spawn } = require('child_process')
+
+function exercise(command, args) {
+    return spawn(command, args, {
+        stdio: ['ignore', 'inherit', 'pipe']
+    })
+}
+
+module.exports = exercise
+
+```
+
+#### Solution 2
+Configuring the child `STDIO` post-creation:
+```js
+// 15_CREATING_CHILD_PROCESSES/labs/labs-2/index.js
+'use strict'
+
+const { spawn } = require('child_process')
+
+function exercise(command, args) {
+    const sp = spawn(command, args)
+
+    // This is the equivalent of using the 'ignore' option for `stdin` in the `stdio` array. It ends
+    // the writable stream.
+    sp.stdin.end()
+    sp.stdout.pipe(process.stdout)
+    // sp.stderr is already a readable stream and will remain so
+
+    return sp
+}
+
+module.exports = exercise
+
+```
+
+## Knoledge Check
+
+### Question 15.1
+What option sets the folder that a child process should execute in?
+- A. `dir`
+- B. `pwd`
+- C. `cwd` [x]
+
+### Question 15.2
+Which `child_process` method can start any executable and has no limit on child process output?
+- A. `exec`
+- B. `spawn` [x]
+- C. `fork`
+
+### Question 15.3
+If a child process is started with the `stdio` option set to `['pipe', 'ignore', 'inherit']`, how
+will the I/O of the child process behave?
+- A. The child process `stdout` property will be a readable stream, it will not be possible to write
+to the `STDIN` of the process, and any output written to `STDERR` will be written to the parent
+`STDERR`
+- B. The child process `stdin` property will be a writable stream, `STDERR` output will be ignored
+but `STDOUT` output will be written to the parent `STDOUT`
+- C. The child process `stdin` property will be a writable stream, `STDOUT` output will be ignored
+but `STDERR` output will be written to the parent `STDERR` [x]

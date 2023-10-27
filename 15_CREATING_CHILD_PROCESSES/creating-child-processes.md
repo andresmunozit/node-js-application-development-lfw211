@@ -678,7 +678,7 @@ const sp = spawn(
         `console.error('err output'); process.stdin.pipe(process.stdout)`
     ],
     // Set child's stderr directly to the parent's `stdout`
-    { stdio: ['pipe', 'inherit', process.stdout] s}
+    { stdio: ['pipe', 'inherit', process.stdout] }
 )
 
 // Now we don't need to explicitly pipe `sp.stderr` to `process.stdout`

@@ -38,20 +38,10 @@ function f (a, b) {
 ```
 
 ```js
-// 03_THE_NODE_BINARY/examples/check-syntax/correct-syntax.js
-'use strict'
-
-function f (a, b) {
-  
-}
-
-```
-
-```js
 // 03_THE_NODE_BINARY/examples/check-syntax/bad-syntax.js
 'use strict'
 
-function f (a, b) {
+function f (a, a) {
   
 }
 
@@ -63,10 +53,9 @@ $ node -c correct-syntax.js
 
 $ node --check correct-syntax.js 
 
-
 # There should be a Syntax error when checking the bad-syntax.js
 $ node -c bad-syntax.js 
-/home/andres/code/andresmunozit/node-js-application-development-lfw211/03_THE_NODE_BINARY/examples/check-syntax/bad-syntax.js:3
+/node-js-application-development-lfw211/03_THE_NODE_BINARY/examples/check-syntax/bad-syntax.js:3
 function f (a, a) {
                ^
 
@@ -161,21 +150,21 @@ f()
 # the stack for the error will be output to the console.
 
 $ node app.js
-/home/andres/code/andresmunozit/node-js-application-development-lfw211/03_THE_NODE_BINARY/examples/stack-trace-limit/app.js:5
+/node-js-application-development-lfw211/03_THE_NODE_BINARY/examples/stack-trace-limit/app.js:5
     if (n === 0) throw Error()
                  ^
 
 Error
-    at f (/home/andres/code/andresmunozit/node-js-application-development-lfw211/03_THE_NODE_BINARY/examples/stack-trace-limit/app.js:5:24)
-    at f (/home/andres/code/andresmunozit/node-js-application-development-lfw211/03_THE_NODE_BINARY/examples/stack-trace-limit/app.js:7:5)
-    at f (/home/andres/code/andresmunozit/node-js-application-development-lfw211/03_THE_NODE_BINARY/examples/stack-trace-limit/app.js:7:5)
-    at f (/home/andres/code/andresmunozit/node-js-application-development-lfw211/03_THE_NODE_BINARY/examples/stack-trace-limit/app.js:7:5)
-    at f (/home/andres/code/andresmunozit/node-js-application-development-lfw211/03_THE_NODE_BINARY/examples/stack-trace-limit/app.js:7:5)
-    at f (/home/andres/code/andresmunozit/node-js-application-development-lfw211/03_THE_NODE_BINARY/examples/stack-trace-limit/app.js:7:5)
-    at f (/home/andres/code/andresmunozit/node-js-application-development-lfw211/03_THE_NODE_BINARY/examples/stack-trace-limit/app.js:7:5)
-    at f (/home/andres/code/andresmunozit/node-js-application-development-lfw211/03_THE_NODE_BINARY/examples/stack-trace-limit/app.js:7:5)
-    at f (/home/andres/code/andresmunozit/node-js-application-development-lfw211/03_THE_NODE_BINARY/examples/stack-trace-limit/app.js:7:5)
-    at f (/home/andres/code/andresmunozit/node-js-application-development-lfw211/03_THE_NODE_BINARY/examples/stack-trace-limit/app.js:7:5)
+    at f (/node-js-application-development-lfw211/03_THE_NODE_BINARY/examples/stack-trace-limit/app.js:5:24)
+    at f (/node-js-application-development-lfw211/03_THE_NODE_BINARY/examples/stack-trace-limit/app.js:7:5)
+    at f (/node-js-application-development-lfw211/03_THE_NODE_BINARY/examples/stack-trace-limit/app.js:7:5)
+    at f (/node-js-application-development-lfw211/03_THE_NODE_BINARY/examples/stack-trace-limit/app.js:7:5)
+    at f (/node-js-application-development-lfw211/03_THE_NODE_BINARY/examples/stack-trace-limit/app.js:7:5)
+    at f (/node-js-application-development-lfw211/03_THE_NODE_BINARY/examples/stack-trace-limit/app.js:7:5)
+    at f (/node-js-application-development-lfw211/03_THE_NODE_BINARY/examples/stack-trace-limit/app.js:7:5)
+    at f (/node-js-application-development-lfw211/03_THE_NODE_BINARY/examples/stack-trace-limit/app.js:7:5)
+    at f (/node-js-application-development-lfw211/03_THE_NODE_BINARY/examples/stack-trace-limit/app.js:7:5)
+    at f (/node-js-application-development-lfw211/03_THE_NODE_BINARY/examples/stack-trace-limit/app.js:7:5)
 
 Node.js v18.15.0
 
@@ -185,20 +174,20 @@ The stack trace output, only shows the call to the f function, in order to see t
 to f, the stack trace limit must be set to 101:
 ```sh
 $ node --stack-trace-limit=101 app.js
-/home/andres/code/andresmunozit/node-js-application-development-lfw211/03_THE_NODE_BINARY/examples/stack-trace-limit/app.js:5
+/node-js-application-development-lfw211/03_THE_NODE_BINARY/examples/stack-trace-limit/app.js:5
     if (n === 0) throw Error()
                  ^
 
 Error
-    at f (/home/andres/code/andresmunozit/node-js-application-development-lfw211/03_THE_NODE_BINARY/examples/stack-trace-limit/app.js:5:24)
-    at f (/home/andres/code/andresmunozit/node-js-application-development-lfw211/03_THE_NODE_BINARY/examples/stack-trace-limit/app.js:7:5)
-    at f (/home/andres/code/andresmunozit/node-js-application-development-lfw211/03_THE_NODE_BINARY/examples/stack-trace-limit/app.js:7:5)
-    at f (/home/andres/code/andresmunozit/node-js-application-development-lfw211/03_THE_NODE_BINARY/examples/stack-trace-limit/app.js:7:5)
+    at f (/node-js-application-development-lfw211/03_THE_NODE_BINARY/examples/stack-trace-limit/app.js:5:24)
+    at f (/node-js-application-development-lfw211/03_THE_NODE_BINARY/examples/stack-trace-limit/app.js:7:5)
+    at f (/node-js-application-development-lfw211/03_THE_NODE_BINARY/examples/stack-trace-limit/app.js:7:5)
+    at f (/node-js-application-development-lfw211/03_THE_NODE_BINARY/examples/stack-trace-limit/app.js:7:5)
 # ...
-    at f (/home/andres/code/andresmunozit/node-js-application-development-lfw211/03_THE_NODE_BINARY/examples/stack-trace-limit/app.js:7:5)
-    at f (/home/andres/code/andresmunozit/node-js-application-development-lfw211/03_THE_NODE_BINARY/examples/stack-trace-limit/app.js:7:5)
-    at f (/home/andres/code/andresmunozit/node-js-application-development-lfw211/03_THE_NODE_BINARY/examples/stack-trace-limit/app.js:7:5)
-    at Object.<anonymous> (/home/andres/code/andresmunozit/node-js-application-development-lfw211/03_THE_NODE_BINARY/examples/stack-trace-limit/app.js:10:1)
+    at f (/node-js-application-development-lfw211/03_THE_NODE_BINARY/examples/stack-trace-limit/app.js:7:5)
+    at f (/node-js-application-development-lfw211/03_THE_NODE_BINARY/examples/stack-trace-limit/app.js:7:5)
+    at f (/node-js-application-development-lfw211/03_THE_NODE_BINARY/examples/stack-trace-limit/app.js:7:5)
+    at Object.<anonymous> (/node-js-application-development-lfw211/03_THE_NODE_BINARY/examples/stack-trace-limit/app.js:10:1)
 
 Node.js v18.15.0
 

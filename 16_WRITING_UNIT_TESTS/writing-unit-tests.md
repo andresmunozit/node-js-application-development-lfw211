@@ -57,10 +57,12 @@ The *core* `assert` module has the following assertion methods:
 The Node core `assert` module doesn't provide feedback for successes; hence, there's no
 `assert.pass` method, as it would equate to no action.
 
+> In this context, *coercive* means allowing type conversion when comparing values.
+
 We can group assertions into the following categories:
 - *Truthiness* (`assert` and `assert.ok`)
 - *Equality* (strict and loose) and Pattern Matching (`match`)
-- *Deep* equality (strict and loose)
+- *Deep equality* (strict and loose)
 - *Errors* (`ifError` plus `throws`, `rejects` and their antitheses)
 - *Unreachability* (`fail`)
 
@@ -86,7 +88,189 @@ type:
 const assert = require('assert')
 const add = require('./get-add-from-somewhere.js')
 const result = add(2, 2)
+
+// If `add` doesn't return the number 4, the `typeof` check will throw
 assert.equal(typeof result, 'number')
 assert.equal(result, 4)
+
+```
+
+The other way to handle this is `assert.strictEqual`
+```js
+// example code
+const assert = require('assert')
+const add = require('./get-add-from-somewhere')
+
+// `strictEqual` checks both, value and type, if `add` desn't return 4 as a number an
+// `AssertionError` will be thrown
+assert.strictEqual(add(2, 2), 4)
+
+```
+
+We can also use the `assert.strict` namespace to access to strict methods:
+```js
+// example code
+const assert = require('assert')
+const add = require('./get-add-from-somewhere')
+assert.strict.equal(add(2, 2), 4)
+
+```
+
+Note that `assert.equal` and other non-strict (i.e. *coercive*) assertion methods are deprecated
+(they may one day be removed). Therefore using `assert.strict` or strict assertion methods like
+`assert.strictEqual` is best practice.
+
+All the assertion libraries work essentially the same. That is, an `AssertionError` will be thrown
+if a condition is not met.
+
+Let's see the same example using the `expect` library:
+```js
+// example code
+const expect = require('expect')
+const add = require('./get-add-from-somewhere')
+
+// `expect` returns an object with assertion methods. For coercive equality you can use the
+// `expect(...).equal(...)` method
+expect(add(2, 2)).toStrictEqual(4)
+
+```
+
+The `expect` library will throw an `JestAssertionError`, which contains extra information. `expect`
+is part of the Jest test runner which we'll explore later.
+
+Basic equality checks like `assert.equal` aren't sufficient for comparing objects because JavaScript
+determines object equality based on their references, not their content:
+```js
+// 16_WRITING_UNIT_TESTS/examples/testing-2.js
+const assert = require('assert')
+const obj = {
+    id: 1,
+    name: { first: 'David', second: 'Clements' }
+}
+
+// This check will fail because objects are compared by reference, not value in JS
+assert.equal(obj, {
+    id: 1,
+    name: { first: 'David', second: 'Clements' }
+})
+
+```
+```
+$ node testing-2.js
+node:assert:124
+  throw new AssertionError(obj);
+  ^
+
+AssertionError [ERR_ASSERTION]: {
+  id: 1,
+  name: {
+    first: 'David',
+    second: 'Clements'
+  }
+} == {
+  id: 1,
+  name: {
+    first: 'David',
+    second: 'Clements'
+  }
+}
+    at Object.<anonymous> (/node-js-application-development-lfw211/16_WRITING_UNIT_TESTS/examples/testing-2.js:8:8)
+    at Module._compile (node:internal/modules/cjs/loader:1254:14)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1308:10)
+    at Module.load (node:internal/modules/cjs/loader:1117:32)
+    at Module._load (node:internal/modules/cjs/loader:958:12)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:81:12)
+    at node:internal/main/run_main_module:23:47 {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: { id: 1, name: { first: 'David', second: 'Clements' } },
+  expected: { id: 1, name: { first: 'David', second: 'Clements' } },
+  operator: '=='
+}
+
+Node.js v18.15.0
+
+```
+
+Deep equality checks like `assert.deepEqual` examine the entire structure of objects and compare the
+basic values within them for equality:
+```js
+// 16_WRITING_UNIT_TESTS/examples/testing-2.js
+const assert = require('assert')
+const obj = {
+    id: 1,
+    name: { first: 'David', second: 'Clements'}
+}
+assert.deepEqual(obj, {
+    id: 1,
+    name: { first: 'David', second: 'Clements'}
+})
+
+```
+```txt
+$ node testing-2.js
+$ echo  $?         
+0
+
+```
+
+`assert.deepEqual` performs a coercive check, this means that the following check will also pass:
+```js
+// 16_WRITING_UNIT_TESTS/examples/testing-3.js
+const assert = require('assert')
+const obj = {
+    id: 1,
+    name: { first: 'David', second: 'Clements' }
+}
+
+// `id` is a string but this will pass because it's not strict
+assert.deepEqual(obj, {
+    id:'1',
+    name: { first: 'David', second: 'Clements' }
+})
+
+```
+```txt
+$ node testing-3.js
+$ echo  $?         
+0
+
+```
+
+It's recommended to use *strict* equality in most cases:
+```js
+// 16_WRITING_UNIT_TESTS/examples/testing-4.js
+const assert = require('assert')
+const obj = {
+    id: 1,
+    name: { first: 'David', second: 'Clements' }
+}
+
+// This will fail because `assert.strict.deepEqual` does not coerce types
+assert.strict.deepEqual(obj, {
+    id: '1', // This is a string
+    name: { first: 'David', second: 'Clements' }
+})
+
+```
+```txt
+$ node testing-4.js 
+node:assert:124
+  throw new AssertionError(obj);
+  ^
+
+AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
++ actual - expected ... Lines skipped
+
+  {
++   id: 1,
+-   id: '1',
+    name: {
+...
+      second: 'Clements'
+    }
+  }
+    at Object...
+# truncated
 
 ```

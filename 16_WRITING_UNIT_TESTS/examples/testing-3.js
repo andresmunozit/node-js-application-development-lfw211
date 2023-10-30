@@ -3,9 +3,8 @@ const obj = {
     id: 1,
     name: { first: 'David', second: 'Clements' }
 }
-
-// This check will fail because objects are compared by reference, not value in JS
-assert.equal(obj, {
-    id: 1,
+// `id` is a string but this will pass because it's not strict
+assert.deepEqual(obj, {
+    id:'1',
     name: { first: 'David', second: 'Clements' }
 })

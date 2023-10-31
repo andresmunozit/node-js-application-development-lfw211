@@ -33,7 +33,7 @@ Node.js v18.15.0
 
 ```
 
-The error thrown is an instance if `AssertionError`.
+The error thrown is an instance of `AssertionError`.
 
 The *core* `assert` module has the following assertion methods:
 - `assert.ok(val)` - the same as `assert(val)`, if `val` is truthy it will not throw
@@ -95,7 +95,7 @@ assert.equal(result, 4)
 
 ```
 
-The other way to handle this is `assert.strictEqual`
+The other way to handle this is `assert.strictEqual`:
 ```js
 // example code
 const assert = require('assert')
@@ -274,3 +274,105 @@ AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
 # truncated
 
 ```
+
+Assertions like `throws`, `ifError`, and `rejects` are helpful for verifying that errors occur in
+synchronous, callback-based, and promise-driven APIs.
+
+Let's start with an error case from an API that is syncrhonous:
+```js
+// 16_WRITING_UNIT_TESTS/examples/testing-5.js
+const assert = require('assert')
+const add = (a, b) => {
+    if (typeof a !== 'number' || typeof b !== 'number') {
+        throw Error('inputs must be numbers')
+    }
+    return a + b
+}
+
+// The second argument to `throws` can be an error; this error will be *deeply* and *strictly*
+// compared with the error thrown by the provided function.
+assert.throws(() => add('5', '5'), Error('inputs must be numbers'))
+
+// We wrap the `add` invocation inside another function because `assert.throws` and
+// `assert.doesNotThrow` require a function to check for thrown errors.
+assert.doesNotThrow(() => add(5, 5))
+
+```
+```txt
+$ node testing-5.js
+$ echo $?
+0
+
+```
+
+For *callback-based* APIs, `assert.ifError` will succeed if the provided parameter (typically named
+`err`) is either `null` or `undefined`:
+```js
+// 16_WRITING_UNIT_TESTS/examples/testing-6.js
+const assert = require('assert')
+
+// This function is an emulation of a URL fetching API
+const pseudoReq = (url, cb) => {
+    setTimeout(() => {
+        if (url == 'http://error.com') cb(Error('network error'))
+        else cb(null, Buffer.from('some data'))
+    }, 300)
+}
+
+pseudoReq('http://example.com', (err, data) => {
+    assert.ifError(err)
+})
+
+pseudoReq('http://error.com', (err, data) => {
+    assert.deepStrictEqual(err, Error('network error'))
+})
+
+```
+```txt
+$ node testing-6.js
+$ echo $?          
+0
+
+```
+
+Finally let's consider asserting error or success states on a *promise-based* API:
+```js
+// 16_WRITING_UNIT_TESTS/examples/testing-7.js
+const assert = require('assert')
+const { setTimeout: timeout } = require('timers/promises')
+const pseudoReq = async (url) => {
+    await timeout(300)
+    if (url === 'http://error.com') throw Error('network error')
+    return Buffer.from('some data')
+}
+
+// These assertions work with promises. If an assertion fails, the promise rejects with
+// an `AssertionError` rather than throwing it directly.
+assert.doesNotReject(pseudoReq('http://example.com'))
+assert.rejects(pseudoReq('http://error.com'), Error('network error'))
+
+```
+```txt
+$ code testing-7.js
+$ echo $?          
+0
+
+```
+
+## Test harnesses
+Test harnesses are tools desinged to facilitate software testing. Individual tests can halt the
+process if they fail, potentially missing other crucial assertion results. Test harnesses address
+this by grouping assertions, allowing for continous testing even if a subset fails.
+
+Broadly speaking we can group test harnesses in two categories: *pure libraries* vs
+*framework environments*:
+
+### Pure Library Test Harnesses
+*Pure library* test harnesses offer a module that is imported into a file to organize the tests.
+These libraries can be run directly with Node just like regular code, making them easier to debug
+and simpler to learn. An example of this is `tap`.
+
+### Framework Environment Test Harnesses
+Test *framework environments*, may provide modules but also introduce implicit globals into the
+environment and requires another CLI tool to execute tests so that these implicit globals can be
+injected. For an example of a test framework environment we'll be looking at `jest`.

@@ -1,0 +1,15 @@
+{
+  "name": "test-harnesses-tap",
+  "version": "1.0.0",
+  "description": "",
+  "main": "add.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "tap": "^18.5.3"
+  }
+}

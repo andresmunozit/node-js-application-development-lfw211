@@ -376,3 +376,159 @@ and simpler to learn. An example of this is `tap`.
 Test *framework environments*, may provide modules but also introduce implicit globals into the
 environment and requires another CLI tool to execute tests so that these implicit globals can be
 injected. For an example of a test framework environment we'll be looking at `jest`.
+
+Let's define some example APIs to be able to test them using both *pure library* and
+*framework environment test harnesses*. Let's create the directory
+`16_WRITING_UNIT_TESTS/examples/test-harnesses-tap` and then create inside the following files to be
+tested:
+```js
+// 16_WRITING_UNIT_TESTS/examples/test-harnesses-tap/add.js
+'use strict'
+module.exports = (a, b) => {
+    if (typeof a !== 'number' || typeof b !== 'number') {
+        throw Error('inputs must be numbers')
+    }
+    return a + b
+}
+
+```
+```js
+// 16_WRITING_UNIT_TESTS/examples/test-harnesses-tap/req.js
+'use strict'
+module.exports = (url, cb) => {
+    setTimeout(() => {
+        if (url === 'http://error.com') cb(Error('network error'))
+        else cb(null, Buffer.from('some data'))
+    }, 300)
+}
+
+```
+```js
+// 16_WRITING_UNIT_TESTS/examples/test-harnesses-tap/req-prom.js
+'use strict'
+const { setTimeout: timeout } = require('timers/promises')
+module.exports = async (url) => {
+    await timeout(300)
+    if (url === 'http://error.com') throw Error('network error') 
+    return Buffer.from('some datas')
+}
+
+```
+
+Now let's generate a `package.json` inside of that folder:
+```txt
+$ npm init -y
+Wrote to /node-js-application-development-lfw211/16_WRITING_UNIT_TESTS/examples/test-harnesses-tap/package.json:
+
+{
+  "name": "test-harnesses-tap",
+  "version": "1.0.0",
+  "description": "",
+  "main": "add.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
+
+```
+
+## `tap` Test Library
+Let's install `tap` as a development dependency:
+```txt
+$ npm i --save-dev tap 
+
+added 324 packages, and audited 325 packages in 19s
+
+62 packages are looking for funding
+  run `npm fund` for details
+
+found 0 vulnerabilities
+
+```
+
+Now we need to create the `test` folder:
+```txt
+$ node -e "fs.mkdirSync('test')"
+
+```
+
+### `tap` Test Library: add.js
+Let's create a test file for `add.js` inside of the `test` folder:
+```js
+// 16_WRITING_UNIT_TESTS/examples/test-harnesses-tap/test/add.test.js
+// Destructure the `test` function from the `tap` library for grouping assertions.
+const { test } = require('tap')
+const add = require('../add.js')
+
+// First test group checks input validation.
+// The async function's promise signals the test's completion. When the promise returned by the
+// async function resolves, the test is done.
+test('throw when inputs are not numbers', async ({ throws }) => {
+    // Destructure the `throws` assertion from the passed-in assertions object. In this way we're
+    // using tap's own assertions without needing the `assert` module.
+    throws(() => add('5', '5'), Error('inputs must be numbers'))
+    throws(() => add(5, '5'), Error('inputs must be numbers'))
+    throws(() => add('5', 5), Error('inputs must be numbers'))
+    throws(() => add({}, null), Error('inputs must be numbers'))
+    // The promise resolves at the function's end without awaiting any async operations
+})
+
+// Second test group verifies output correctness.
+test('adds two numbers', async ({ equal }) => {
+    // Use the `equal` assertion from the passed-in assertions object.
+    equal(add(5, 5), 10)
+    equal(add(-5, 5), 0)
+})
+
+```
+
+The new test can be run directly with `node`:
+```txt
+$ node add.test.js 
+TAP version 14
+# Subtest: throw when inputs are not numbers
+    ok 1 - expected to throw
+    ok 2 - expected to throw
+    ok 3 - expected to throw
+    ok 4 - expected to throw
+    1..4
+ok 1 - throw when inputs are not numbers # time=3.941ms
+
+# Subtest: adds two numbers
+    ok 1 - should be equal
+    ok 2 - should be equal
+    1..2
+ok 2 - adds two numbers # time=0.667ms
+
+1..2
+# { total: 6, pass: 6 }
+# time=13.364ms
+
+```
+
+The output format is known as the *Test Anything Protocol (TAP)*. It is a platform and language 
+independent test output format.
+
+When tap is installed, it includes a *test runner* executable which can be accessed locally from
+`node_modules/.bin/tap`:
+```txt
+$ pwd 
+/node-js-application-development-lfw211/16_WRITING_UNIT_TESTS/examples/test-harnesses-tap
+
+$ node_modules/.bin/tap test/add.test.js 
+ PASS  test/add.test.js 6 OK 414ms
+
+                       
+  🌈 TEST COMPLETE 🌈  
+                       
+
+Asserts:  6 pass  0 fail  6 of 6 complete
+Suites:   1 pass  0 fail  1 of 1 complete
+
+# { total: 6, pass: 6 }
+# time=466.882ms
+
+```

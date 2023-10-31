@@ -1,0 +1,49 @@
+{
+  "result": [
+    {
+      "scriptId": "977",
+      "url": "file:///home/andres/code/andresmunozit/node-js-application-development-lfw211/16_WRITING_UNIT_TESTS/examples/test-harnesses-tap/add.js",
+      "functions": [
+        {
+          "functionName": "",
+          "ranges": [
+            {
+              "startOffset": 0,
+              "endOffset": 171,
+              "count": 1
+            }
+          ],
+          "isBlockCoverage": true
+        },
+        {
+          "functionName": "module.exports",
+          "ranges": [
+            {
+              "startOffset": 30,
+              "endOffset": 170,
+              "count": 6
+            },
+            {
+              "startOffset": 72,
+              "endOffset": 96,
+              "count": 3
+            },
+            {
+              "startOffset": 98,
+              "endOffset": 151,
+              "count": 4
+            },
+            {
+              "startOffset": 151,
+              "endOffset": 169,
+              "count": 2
+            }
+          ],
+          "isBlockCoverage": true
+        }
+      ]
+    }
+  ],
+  "timestamp": 59561.29475,
+  "source-map-cache": {}
+}

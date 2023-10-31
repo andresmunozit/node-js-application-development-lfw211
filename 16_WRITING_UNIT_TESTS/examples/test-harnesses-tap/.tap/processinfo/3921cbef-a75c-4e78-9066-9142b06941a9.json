@@ -1,0 +1,30 @@
+{
+  "date": "2023-10-31T20:27:11.995Z",
+  "argv": [
+    "/home/andres/.nvm/versions/node/v18.15.0/bin/node",
+    "/home/andres/code/andresmunozit/node-js-application-development-lfw211/16_WRITING_UNIT_TESTS/examples/test-harnesses-tap/test/add.test.js"
+  ],
+  "execArgv": [
+    "--loader=file:///home/andres/code/andresmunozit/node-js-application-development-lfw211/16_WRITING_UNIT_TESTS/examples/test-harnesses-tap/node_modules/@isaacs/ts-node-temp-fork-for-pr-2009/esm.mjs",
+    "--loader=file:///home/andres/code/andresmunozit/node-js-application-development-lfw211/16_WRITING_UNIT_TESTS/examples/test-harnesses-tap/node_modules/@tapjs/mock/dist/esm/legacy-loader.mjs",
+    "--no-warnings",
+    "--enable-source-maps",
+    "--loader=file:///home/andres/code/andresmunozit/node-js-application-development-lfw211/16_WRITING_UNIT_TESTS/examples/test-harnesses-tap/node_modules/@tapjs/processinfo/dist/esm/loader-legacy.mjs"
+  ],
+  "NODE_OPTIONS": "\"--loader=file:///home/andres/code/andresmunozit/node-js-application-development-lfw211/16_WRITING_UNIT_TESTS/examples/test-harnesses-tap/node_modules/@tapjs/processinfo/dist/esm/loader-legacy.mjs\" \"--no-warnings\"",
+  "cwd": "/home/andres/code/andresmunozit/node-js-application-development-lfw211/16_WRITING_UNIT_TESTS/examples/test-harnesses-tap",
+  "pid": 310743,
+  "ppid": 310728,
+  "parent": null,
+  "uuid": "3921cbef-a75c-4e78-9066-9142b06941a9",
+  "files": [
+    "/home/andres/code/andresmunozit/node-js-application-development-lfw211/16_WRITING_UNIT_TESTS/examples/test-harnesses-tap/test/add.test.js",
+    "/home/andres/code/andresmunozit/node-js-application-development-lfw211/16_WRITING_UNIT_TESTS/examples/test-harnesses-tap/add.js"
+  ],
+  "sources": {},
+  "root": "3921cbef-a75c-4e78-9066-9142b06941a9",
+  "externalID": "test/add.test.js",
+  "code": 0,
+  "signal": null,
+  "runtime": 158.625993
+}

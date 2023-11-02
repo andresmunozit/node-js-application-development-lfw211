@@ -1,0 +1,50 @@
+{
+  "result": [
+    {
+      "scriptId": "977",
+      "url": "file:///home/andres/code/andresmunozit/node-js-application-development-lfw211/16_WRITING_UNIT_TESTS/examples/test-harnesses-tap/req.js",
+      "functions": [
+        {
+          "functionName": "",
+          "ranges": [
+            {
+              "startOffset": 0,
+              "endOffset": 197,
+              "count": 1
+            }
+          ],
+          "isBlockCoverage": true
+        },
+        {
+          "functionName": "module.exports",
+          "ranges": [
+            {
+              "startOffset": 30,
+              "endOffset": 196,
+              "count": 2
+            }
+          ],
+          "isBlockCoverage": true
+        },
+        {
+          "functionName": "",
+          "ranges": [
+            {
+              "startOffset": 60,
+              "endOffset": 188,
+              "count": 2
+            },
+            {
+              "startOffset": 108,
+              "endOffset": 182,
+              "count": 1
+            }
+          ],
+          "isBlockCoverage": true
+        }
+      ]
+    }
+  ],
+  "timestamp": 14627.721123,
+  "source-map-cache": {}
+}

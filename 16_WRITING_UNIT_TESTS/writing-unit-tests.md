@@ -7,7 +7,7 @@ Assertions validate *values against conditions*, throwing errors if unmet. They'
 and integration testing. 
 
 The *core* `assert` module throws an `AssertionError` if the given value is falsy (convertible to
-`false` using `!!val`). If the value passed to assert is truthy then it will not throw:
+`false` using `!!val`). If the value passed to `assert` is truthy then it will not throw:
 ```txt
 $ node -e "assert(false)"
 node:assert:400
@@ -270,7 +270,7 @@ AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
       second: 'Clements'
     }
   }
-    at Object...
+    at Object.<anonymous> (/node-js-application-development-lfw211/16_WRITING_UNIT_TESTS/examples/testing-4.js:8:15)
 # truncated
 
 ```
@@ -320,6 +320,7 @@ const pseudoReq = (url, cb) => {
 }
 
 pseudoReq('http://example.com', (err, data) => {
+    // Won't throw since `err` is null
     assert.ifError(err)
 })
 
@@ -530,5 +531,110 @@ Suites:   1 pass  0 fail  1 of 1 complete
 
 # { total: 6, pass: 6 }
 # time=466.882ms
+
+```
+
+### `tap` Test Library: req.js
+Code coverage shows which paths in the code were executed. It boosts confidence in tested code,
+especially in languages like JavaScript where varied input types matter. However, high code coverage
+does't guarantee comprehensive testing since it differs from *case coverage*.
+
+Let's test the *callback-based* API:
+```js
+// 16_WRITING_UNIT_TESTS/examples/test-harnesses-tap/test/req.test.js
+'use strict'
+// We'll use the `test` function to group assertions for different scenarios
+const { test } = require('tap')
+const req = require('../req')
+
+// In the first group we're testing our mock network error scenario
+// Since we're testing a callback-based API, we don't provide an async function to `test`, it's much
+// easier to call a final callback to signal test completion, in this case it's the `end` function.
+test('handles network error', ({ same, end }) => {
+    req('http://error.com', (err, data) => {
+        // `same` works the same as `deepStrictEqual`. We use it in both groups to check
+        // the expected error and the expected buffer respectivelly.
+        same(err, Error('network error'))
+        // `tap` requires an explicit `end()` due to unpredictable asynchronous ops and to avoid
+        // premature test completion, ensuring all assertions are executed.
+        end()
+    })
+})
+
+// In the second group we're testing our mock output
+test('responds with data', ({ ok, same, error, end}) => {
+    req('http://example.com', (err, data) => {
+        // Since we're not expecting an error, `error` is not expected to throw.
+        error(err)
+        // The `ok` assertion checks for truthiness. `Buffer.isBuffer(data)` will return a boolean.
+        ok(Buffer.isBuffer(data))
+        
+        // Since buffers are array-like, deep equality check will loop through every element in the
+        // array and check them against each other.
+        same(data, Buffer.from('some data'))
+        // We use `end()` in both groups to avoid test timeouts and ensure assertions run before a
+        // test group completes
+        end()
+    })
+})
+
+```
+
+Let's run all the tests using the `tap` *test runner*:
+```txt
+$ ./node_modules/.bin/tap
+ PASS  test/add.test.js 6 OK 363ms
+ PASS  test/req.test.js 4 OK 960ms
+
+                       
+  🌈 TEST COMPLETE 🌈  
+                       
+
+Asserts:  10 pass  0 fail  10 of 10 complete
+Suites:    2 pass  0 fail    2 of 2 complete
+
+# { total: 10, pass: 10 }
+# time=1023.354ms
+
+```
+
+Now let's test the `req-prom.js` file:
+```js
+// 16_WRITING_UNIT_TESTS/examples/test-harnesses-tap/test/req-prom.test.js
+'use strict'
+const { test } = require('tap')
+const req = require('../req-prom')
+
+// Using async functions due to promises.
+test('handles network errors', async ({ rejects }) => {
+    // Using `rejects` assertion to check error passed. Await it since it returns a promise.
+    await rejects(req('http://error.com'), Error('network error'))
+})
+
+test('responds with data', async ({ ok, same }) => {
+    // If `req` rejects, it will be caught by the async function leading to an assertion failure.
+    const data = await req('http://example.com')
+    ok(Buffer.isBuffer(data))
+    same(data, Buffer.from('some data'))
+})
+
+```
+
+Let's run all the tests using the `tap` *test runner*:
+```txt
+$ ./node_modules/.bin/tap
+ PASS  test/add.test.js 6 OK 392ms
+ PASS  test/req.test.js 4 OK 986ms
+ PASS  test/req-prom.test.js 3 OK 998ms
+
+                       
+  🌈 TEST COMPLETE 🌈  
+                       
+
+Asserts:  13 pass  0 fail  13 of 13 complete
+Suites:    3 pass  0 fail    3 of 3 complete
+
+# { total: 13, pass: 13 }
+# time=1067.335ms
 
 ```

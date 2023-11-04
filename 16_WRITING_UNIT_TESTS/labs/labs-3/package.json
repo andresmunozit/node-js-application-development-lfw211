@@ -1,0 +1,15 @@
+{
+  "name": "labs-3",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "tap"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "tap": "^18.5.7"
+  }
+}

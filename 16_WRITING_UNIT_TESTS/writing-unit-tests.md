@@ -638,3 +638,656 @@ Suites:    3 pass  0 fail    3 of 3 complete
 # time=1067.335ms
 
 ```
+
+## `jest` Framework: test/add.test.js
+Let's set up the `16_WRITING_UNIT_TESTS/examples/test-harnesses-jest`, folder for writing test with
+jest:
+```txt
+$ node -e "fs.mkdirSync('test-harnesses-jest')"
+$ cp test-harnesses-tap/*.js test-harnesses-jest 
+$ cd test-harnesses-jest 
+$ ll
+total 12K
+-rw-rw-r-- 1 andres andres 171 nov  3 23:15 add.js
+-rw-rw-r-- 1 andres andres 197 nov  3 23:15 req.js
+-rw-rw-r-- 1 andres andres 233 nov  3 23:15 req-prom.js
+
+$ npm init -y
+Wrote to /node-js-application-development-lfw211/16_WRITING_UNIT_TESTS/examples/test-harnesses-jest/package.json:
+# Truncated
+
+$ npm install --save-dev jest
+
+added 290 packages, and audited 291 packages in 50s
+
+32 packages are looking for funding
+  run `npm fund` for details
+
+found 0 vulnerabilities
+
+$ node -e "fs.mkdirSync('test')"
+
+```
+
+Now let's create a test file for `add.js`:
+```js
+// 16_WRITING_UNIT_TESTS/examples/test-harnesses-jest/test/add.test.js
+'use strict'
+const add = require('../add')
+
+// In this case `test` and `expect` are not being loaded from any module. These functions are made
+// available by `jest` at execution time, so we cannot run our tests directly with node.
+test('throw when inputs are not numbers', async () => {
+    expect(() => add('5', '5')).toThrowError(
+        Error('inputs must be numbers')
+    )
+    expect(() => add(5, '5')).toThrowError(
+        Error('inputs must be numbers')
+    )
+    expect(() => add('5', 5)).toThrowError(
+        Error('inputs must be numbers')
+    )
+    expect(() => add({}, null)).toThrowError(
+        Error('inputs must be numbers')
+    )
+})
+test('adds two numbers', async () => {
+    expect(add(5, 5)).toStrictEqual(10)
+    expect(add(-5, 5)).toStrictEqual(0)
+})
+
+```
+
+We cannot run the test directly with node, since we wouldn't have access to the `test` and `expect`
+functions:
+```txt
+$ node add.test.js 
+/node-js-application-development-lfw211/16_WRITING_UNIT_TESTS/examples/test-harnesses-jest/test/add.test.js:6
+test('throw when inputs are not numbers', async () => {
+^
+
+ReferenceError: test is not defined
+    at Object.<anonymous> (/node-js-application-development-lfw211/16_WRITING_UNIT_TESTS/examples/test-harnesses-jest/test/add.test.js:6:1)
+# Truncated
+
+```
+
+Instead we always have to use the `jest` executable to run tests:
+```txt
+$ pwd
+/node-js-application-development-lfw211/16_WRITING_UNIT_TESTS/examples/test-harnesses-jest
+
+$ node_modules/.bin/jest test/add.test.js 
+ PASS  test/add.test.js
+  ✓ throw when inputs are not numbers (3 ms)
+  ✓ adds two numbers
+
+Test Suites: 1 passed, 1 total
+Tests:       2 passed, 2 total
+Snapshots:   0 total
+Time:        0.198 s
+Ran all test suites matching /test\/add.test.js/i.
+
+```
+
+But default `jest` does not output code coverage but can be passed the `--coverage` flag to do so:
+```txt
+$ node_modules/.bin/jest --coverage test/add.test.js
+ PASS  test/add.test.js
+  ✓ throw when inputs are not numbers (5 ms)
+  ✓ adds two numbers
+
+----------|---------|----------|---------|---------|-------------------
+File      | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s 
+----------|---------|----------|---------|---------|-------------------
+All files |     100 |      100 |     100 |     100 |                   
+ add.js   |     100 |      100 |     100 |     100 |                   
+----------|---------|----------|---------|---------|-------------------
+Test Suites: 1 passed, 1 total
+Tests:       2 passed, 2 total
+Snapshots:   0 total
+Time:        0.215 s, estimated 1 s
+Ran all test suites matching /test\/add.test.js/i.
+
+```
+
+> Note that direct Node execution of tests simplifies debugging by removing intermediaries.
+
+## `jest` Framework: test/req.test.js
+Let's create a test file for `req.js`:
+```js
+// 16_WRITING_UNIT_TESTS/examples/test-harnesses-jest/test/req.test.js
+'use strict'
+const req = require('../req')
+
+test('handles network error', (done) => {
+    req('http://error.com', (err, data) => {
+        expect(err).toStrictEqual(Error('network error'))
+        // In this callback-based, we call `done` to signal the end of this test case.
+        done()
+    })
+})
+
+test('responds with data', (done) => {
+    req('http://example.com', (err, data) => {
+        // `expect` doesn't have an equivalent to `ifError`. Using a coercive equality check will
+        // result in the conditional being true if error is `null` or `undefined`
+        expect(err == null).toBe(true)
+        // `isBuffer` will return a boolean. We use `toBeTruthy` here to demonstrate how to achieve
+        // the same behavior as `ok`
+        expect(Buffer.isBuffer(data)).toBeTruthy()
+        expect(data).toStrictEqual(Buffer.from('some data'))
+        done()
+    })
+})
+
+```
+
+Let's check our test with `jest`:
+```txt
+$ node_modules/.bin/jest test/req.test.js
+ PASS  test/req.test.js
+  ✓ handles network error (307 ms)
+  ✓ responds with data (307 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       2 passed, 2 total
+Snapshots:   0 total
+Time:        0.801 s, estimated 6 s
+Ran all test suites matching /test\/req.test.js/i.
+
+```
+
+## `jest` Framework: test/req-prom.test.js
+Finally, let's create a test file for `req-prom.js`:
+```js
+// 16_WRITING_UNIT_TESTS/examples/test-harnesses-jest/test/req-prom.test.js
+'use strict'
+const req = require('../req-prom')
+
+test('handles network error', async () => {
+    // Here we use `await` because `rejects` returns a promise
+    await expect(req('http://error.com'))
+        .rejects
+        .toStrictEqual(Error('network error'))
+})
+
+test('responds with data', async () => {
+    // If `req` rejects, it will be caught by the async function leading to an assertion failure.
+    const data = await req('http://example.com')
+    expect(Buffer.isBuffer(data)).toBeTruthy()    
+    expect(data).toStrictEqual(Buffer.from('some data'))
+})
+
+```
+
+With all tests now completed, executing `jest` without specifying file names will result in all test
+files within the `test` folder being automatically processed by `jest`:
+```txt
+$ node_modules/.bin/jest                            
+ PASS  test/req-prom.test.js
+ PASS  test/req.test.js
+ PASS  test/add.test.js
+
+Test Suites: 3 passed, 3 total
+Tests:       6 passed, 6 total
+Snapshots:   0 total
+Time:        1.525 s
+Ran all test suites.
+
+```
+
+
+## Configuring `package.json`
+One final step that is critical, is to confirm that the test script in `package.json` executes the
+correct command. This is a very common mistake, so bear this in mind.
+
+In a fresh `package.json` file, the default `test` script returns an exit code of 1, indicating a
+failure:
+```json
+// 16_WRITING_UNIT_TESTS/examples/test-harnesses-jest/package.json
+{
+  "name": "test-harnesses-jest",
+  "version": "1.0.0",
+  "description": "",
+  "main": "add.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "jest": "^29.7.0"
+  }
+}
+
+```
+
+This implies that the absence of tests is treated as a failing test condition:
+```txt
+$ npm test
+
+> test-harnesses-jest@1.0.0 test
+> echo "Error: no test specified" && exit 1
+
+Error: no test specified
+
+```
+
+The `scripts` section in `package.json` should contain *shell commands*. These commands can
+directly invoke `jest`, `tap` or any other executable within `node_modules/.bin` directory, as the
+runtime environment automatically checks this folder for such executables.
+
+Let's modify the `test` script to execute `jest` and output the test coverage:
+```json
+// 16_WRITING_UNIT_TESTS/examples/test-harnesses-jest/package.json
+{
+  "name": "test-harnesses-jest",
+  "version": "1.0.0",
+  "description": "",
+  "main": "add.js",
+  "scripts": {
+    "test": "jest --coverage"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "jest": "^29.7.0"
+  }
+}
+
+```
+
+Now let's run `npm test`:
+```txt
+$ npm test
+
+> test-harnesses-jest@1.0.0 test
+> jest --coverage
+
+ PASS  test/req-prom.test.js
+ PASS  test/req.test.js
+ PASS  test/add.test.js
+-------------|---------|----------|---------|---------|-------------------
+File         | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s 
+-------------|---------|----------|---------|---------|-------------------
+All files    |     100 |      100 |     100 |     100 |                   
+ add.js      |     100 |      100 |     100 |     100 |                   
+ req-prom.js |     100 |      100 |     100 |     100 |                   
+ req.js      |     100 |      100 |     100 |     100 |                   
+-------------|---------|----------|---------|---------|-------------------
+
+Test Suites: 3 passed, 3 total
+Tests:       6 passed, 6 total
+Snapshots:   0 total
+Time:        1.546 s
+Ran all test suites.
+
+```
+
+## Labs
+
+## Lab 16.1 - Test a Sync API
+The `labs-1` folder contains a `package.json` file and a `uppercase.js` file.
+
+The `package.json` file contains the following:
+```js
+// labs-june-2023/labs/ch-16/labs-1/package.json
+{
+    "name": "labs-1",
+    "version": "1.0.0",
+    "description": "",
+    "main": "index.js",
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "keywords": [],
+    "author": "",
+    "license": "UNLICENSED"
+}
+
+```
+
+The `uppercase.js` file contains the following:
+```js
+// labs-june-2023/labs/ch-16/labs-1/uppercase.js
+'use strict'
+function uppercase(str) {
+    if (typeof str !== 'string') throw Error('input must be a string')
+    return str.toUpperCase()
+}
+
+module.exports = uppercase
+
+```
+
+Write tests for the `uppercase.js` file. Ensure that when `npm test` is executed with the `labs-1`
+folder as the current working directory the `uppercase.js` file is fully tested.
+
+Any additional dependencies, such as a test harness, may be additionally installed.
+
+Also in the `labs-1` folder is a `validate.js` file. The implementation can be checked with node
+`validate.js`. The implementation is successful if the final output of `node validate.js` is
+passed!.
+
+#### Solution
+```txt
+$ npm install -D tap
+
+```
+```js
+// 16_WRITING_UNIT_TESTS/labs/labs-1/test/uppercase.test.js
+const { test } = require('tap')
+const uppercase = require('../uppercase')
+
+test('handles incorrect input', async ({ throws, doesNotThrow }) => {
+    throws(() => uppercase(1), Error('must be a string'))
+    throws(() => uppercase({}), Error('must be a string'))
+    throws(() => uppercase(), Error('must be a string'))
+    doesNotThrow(() => uppercase('hi'))
+})
+
+test('transforms to uppercase', async ({ same }) => {
+    same(uppercase('hello'), 'HELLO')
+    same(uppercase('Test'), 'TEST')
+})
+
+```
+```json
+// 16_WRITING_UNIT_TESTS/labs/labs-1/package.json
+{
+    "name": "labs-1",
+    "version": "1.0.0",
+    "description": "",
+    "main": "index.js",
+    "scripts": {
+        // The test script runs tap
+        "test": "tap"
+    },
+    "keywords": [],
+    "author": "",
+    "license": "UNLICENSED",
+    "devDependencies": {
+        "tap": "^18.5.7"
+    }
+}
+
+```
+```txt
+$ npm test -- test/uppercase.test.js
+
+> labs-1@1.0.0 test
+> tap test/uppercase.test.js
+
+ PASS  test/uppercase.test.js 6 OK 343ms
+
+                       
+  🌈 TEST COMPLETE 🌈  
+                       
+
+Asserts:  6 pass  0 fail  6 of 6 complete
+Suites:   1 pass  0 fail  1 of 1 complete
+
+# { total: 6, pass: 6 }
+# time=393.067ms
+
+$ node validate.js                  
+passed!
+
+```
+
+### Lab 16.2 - Test a Callback-Based API
+The `labs-2` folder contains a `package.json` file and a `store.js` file.
+
+The `package.json` file contains the following.
+```json
+// 16_WRITING_UNIT_TESTS/labs/labs-2/package.json
+{
+  "name": "labs-2",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "UNLICENSED"
+}
+
+```
+
+The `store.js` file contains the following:
+```js
+// labs-june-2023/labs/ch-16/labs-2/store.js
+'use strict'
+module.exports = (value, cb) => {
+    if (Buffer.isBuffer(value) === false) {
+        cb(Error('input must be a buffer'))
+        return
+    }
+    setTimeout(() => {
+        const id = Math.random().toString(36).split('.')[1].slice(0, 4)
+        cb(null, { id })
+    }, 300)
+}
+
+```
+
+This API mimics some kind of async storage mechanism, such as to a database. In some circumstances
+it is infeasible to check for a specific value (for instance an ID returned from a
+database). For those cases, we can check for the presence of an ID, or apply some validation.
+In our case we can at least check that the length of the ID is 4.
+
+Write tests for the `store.js` file. Ensure that when npm test is executed with the `labs-2`
+folder as the current working directory the `store.js` file is fully tested.
+
+Any additional dependencies, such as a test harness, may be additionally installed.
+Also in the `labs-2` folder is a `validate.js` file. The implementation can be checked with node
+validate.js. The implementation is successful if the final output of node `validate.js` is
+passed!
+
+#### Solution
+```json
+// 16_WRITING_UNIT_TESTS/labs/labs-2/package.json
+{
+  "name": "labs-2",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "tap"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "tap": "^18.5.7"
+  }
+}
+
+```
+```js
+// 16_WRITING_UNIT_TESTS/labs/labs-2/test/store.test.js
+const { test } = require('tap')
+const store = require('../store')
+
+test('handles wrong input', ({ same, end, ok }) => {
+    // Other input data types can be tested, for this excercise it's enough this single case
+    store('wrong input', (err, res) => {
+        ok(err)
+        same(err, Error('input must be a buffer'))
+        end()
+    })
+})
+
+test('returns an id', ({ error, same, end, ok }) => {
+    store(Buffer.from('test'), (err, { id }) => {
+        error(err)
+        ok(id)
+        same(id.length, 4)
+        end()
+    })
+})
+
+```
+```txt
+$ npm test
+
+> labs-2@1.0.0 test
+> tap
+
+ PASS  test/store.test.js 5 OK 658ms
+
+                       
+  🌈 TEST COMPLETE 🌈  
+                       
+
+Asserts:  5 pass  0 fail  5 of 5 complete
+Suites:   1 pass  0 fail  1 of 1 complete
+
+# { total: 5, pass: 5 }
+# time=713.708ms
+
+$ node validate.js 
+passed!
+
+```
+
+### Lab 16.3 - Test a Promise-Based async/await API
+The `labs-3` folder contains a `package.json` file and a `store.js` file.
+
+The `package.json` file contains the following:
+```json
+// 16_WRITING_UNIT_TESTS/labs/labs-3/package.json
+{
+  "name": "labs-3",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "UNLICENSED"
+}
+
+```
+
+The `store.js` file contains the following:
+```js
+// 16_WRITING_UNIT_TESTS/labs/labs-3/store.js
+'use strict'
+const { promisify } = require('util')
+const timeout = promisify(setTimeout)
+module.exports = async (value) => {
+    if (Buffer.isBuffer(value) === false) {
+        throw Error('input must be a buffer')
+    }
+    await timeout(300)
+    const id = Math.random().toString(36).split('.')[1].slice(0, 4)
+    return { id }
+}
+
+```
+
+This API mimics some kind of async storage mechanism, such as to a database. In some
+circumstances it is infeasible to check for a specific value (for instance an ID returned from a
+database). For those cases, we can check for the presence of an ID, or apply some validation.
+In our case we can at least check that the length of the ID is 4.
+
+Write tests for the `store.js` file. Ensure that when npm test is executed with the `labs-2`
+folder as the current working directory the `store.js` file is fully tested.
+
+Any additional dependencies, such as a test harness, may be additionally installed.
+
+Also in the `labs-3` folder is a `validate.js` file. The implementation can be checked with node
+`validate.js`. The implementation is successful if the final output of node `validate.js` is
+passed!
+
+#### Solution
+```json
+// 16_WRITING_UNIT_TESTS/labs/labs-3/package.json
+{
+  "name": "labs-3",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "tap"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "tap": "^18.5.7"
+  }
+}
+
+```
+```js
+// 16_WRITING_UNIT_TESTS/labs/labs-3/test/store.test.js
+const { test } = require('tap')
+const store = require('../store')
+
+test('handles wrong input', async ({ rejects }) => {
+    await rejects(store('wrong input'))
+})
+
+test('returns an id', async ({ same, ok }) => {
+    const { id } = await store(Buffer.from('test'))
+    same(id.length, 4)
+})
+
+```
+```txt
+$ npm test
+
+> labs-3@1.0.0 test
+> tap
+
+ PASS  test/store.test.js 2 OK 685ms
+
+                       
+  🌈 TEST COMPLETE 🌈  
+                       
+
+Asserts:  2 pass  0 fail  2 of 2 complete
+Suites:   1 pass  0 fail  1 of 1 complete
+
+# { total: 2, pass: 2 }
+# time=743.422ms
+
+$ node validate.js  
+passed!
+
+```
+
+## Knowledge Check
+
+### Question 16.1
+Using the Node core `assert` module and given the expression `assert.equal('1', 1)` what will be the
+outcome?
+- A. Nothing, the assertion will pass [x]
+- B. An assertion error will throw because of incompatible types
+- C. A warning will be printed
+
+### Question 16.2
+Which is a major difference between pure library test harnesses (like `tap`) and framework
+environment test harnesses (like jest)?
+- A. Both can be run directly with Node but only framework environment test harnesses have a test
+runner
+- B. Pure library test harnesses have programmatic APIs whereas framework environment test harnesses
+have implicit APIs [x]
+- C. Pure library test harnesses are smaller whereas framework environment test harnesses are more
+comprehensive
+
+### Question 16.3
+Why is code coverage important?
+A. It isn't important
+B. Ensuring high test coverage can help tease out bugs by covering as many logic paths as possible,
+this is especially important in a loosely typed language [x]
+C. Bragging rights

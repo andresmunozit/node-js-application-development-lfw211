@@ -44,12 +44,13 @@ For help, see: https://nodejs.org/en/docs/inspector
 
 ```
 
-The remote debugging protocol uses WebSockets which is why ws:// protocol address is printed.
+The remote debugging protocol uses WebSockets which is why `ws://` protocol address is printed.
 
 To start the debugging process, the next step is to set a Chrome tab's addresses bar to
-chrome://inspect.
+`chrome://inspect`.
+![inspect](images/1.png)
 
-This will show the Remote Target section, with the target app.js, and the inspect link to start.
+This will show the Remote Target section, with the target `app.js`, and the inspect link to start.
 
 For more information about Chrome Devtools, see
 [Google Developer's Documentation](https://developer.chrome.com/docs/devtools/).
@@ -61,6 +62,7 @@ uncaught exceptions" checkbox.
 
 Ensure the "Pause on caught exceptions" checkbox is unchecked and press the play button, the process
 should then pause on line 2 where the error is thrown.
+![inspect](images/2.png)
 
 ## Adding a Breakpoint in Devtools
 In order to add a breakpoint at any place in Devtools, click the line number in the column to the

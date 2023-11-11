@@ -9,7 +9,7 @@ Everything else, including functions and arrays, is an object.
 - Udefined: undefined
 - Number: 1, 1.5, -1e4, NaN
 - BigInt: 1n, 90071199254740993n
-- String: 'str', "str", `str ${var}`
+- String: 'str', "str",  \`str ${var}\`
 - Boolean: true, false
 - Symbol: Symbol('description'), Symbol.for('namespace')
 
@@ -81,13 +81,17 @@ obj.fn() // prints 999
 
 ```
 
-It's crucial to understand that `this` refers to the object on which the function was called, not
-the object wich the function was assined to:
+In JavaScript, the value of `this` within a function is determined by the object that invokes the
+function, not necessarily the object where the function is originally defined. When you call a
+function, `this` points to the object left of the dot where the function is called:
 ```js
 const obj = {id: 999, fn: function() {console.log(this.id)}}
 const obj2 = {id: 2, fn: obj.fn}
 
 obj.fn() // prints 999
+
+// `fn` is defined in `obj`, but the object that calls `fn` is `obj2` so `this` takes the value
+// of `obj2` inside of `fn`
 obj2.fn() // prints 2
 
 ```
@@ -219,11 +223,11 @@ In the case of the previous code examples, because `dog` and `rufus` property de
 Property descriptors are not directly relevant to prototypal inheritance, but are part of the
 `Object.create` interface.
 
-> `Object.defineProperty()` in JavaScript allows for the precise control of an object's property.
-Unlike normal property addition, it permits customization of whether the property can be changed,
-enumerated, or deleted. By default, properties added this way are not writable, enumerable, or
-configurable, and the method doesn't invoke setters, even if the property already exists, due to its
-use of the [[DefineOwnProperty]] internal method instead of [[Set]].
+> `Object.defineProperty(object, properyDescriptor)` in JavaScript allows for the precise control of
+an object's property. Unlike normal property addition, it permits customization of whether the
+property can be changed, enumerated, or deleted. By default, properties added this way are not
+writable, enumerable, or configurable, and the method doesn't invoke setters, even if the property
+already exists, due to its use of the [[DefineOwnProperty]] internal method instead of [[Set]].
 
 See examples at
 [mdn web docs](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/defineProperty#examples).
@@ -295,9 +299,9 @@ with the `new` keyword. This is a common pattern in legacy code so it's worth un
 All functions have a `prototype` property.
 ```js
 // 05_KEY_JAVASCRIPT_CONCEPTS/examples/prototypal-inheritance/constructor-functions-approach.js
-// Define a constructor function named "Wolf." By convention, constructor function names start with
-// an uppercase letter.
+// Definition of a constructor function
 function Wolf(name) {
+    // Here, `this` refers to the object that calls the current `Wolf` constructor function
     this.name = name;
 }
 

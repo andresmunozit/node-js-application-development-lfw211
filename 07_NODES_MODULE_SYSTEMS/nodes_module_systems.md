@@ -98,7 +98,7 @@ module.exports =  { upper: upper }
 
 The `format.js` file can now be loaded into our `index.js` file as a local module:
 ```js
-// 07_NODES_MODULE_SYSTEMS/examples/my-package/format.js
+// 07_NODES_MODULE_SYSTEMS/examples/my-package/index.js
 
 'use strict'
 // The `format.js` file is loaded. The extension (.js) is allowed but not necessary.

@@ -44,7 +44,7 @@ const myEmitter = new EventEmitter()
 
 // The first argument is the event namespace, in order to listen to an event this namespace has to
 // be known
-// The subsequent arguments will be passed to the listener
+// The subsequent arguments will be passed in the same order to a listener function
 myEmitter.emit('an-event', some, args)
 
 ```
@@ -134,6 +134,13 @@ const ee = new EventEmitter()
 ee.on('my-event', () => {console.log('2st')})
 ee.prependListener('my-event', () => {console.log('1st')})
 ee.emit('my-event')
+
+```
+
+```txt
+$ node event-emitter-4.js
+1st
+2st
 
 ```
 
@@ -231,7 +238,7 @@ ee.on('my-event', listener2)
 ee.on('another-event', ()  => {console.log('another event')})
 
 setInterval(() => {
-    // Both events are triggered every 300 ms
+    // Both events are triggered every 200 ms
     ee.emit('my-event')
     ee.emit('another-event')
 }, 200);
@@ -347,7 +354,7 @@ console.log('pinged!')
 ```
 
 Suppose there's a possibility that an event might be emitted, but it could either not occur at all
-or take longer than what's acceptable. With an `AbortController`, we can cancel the promisified
+or take longer than what's acceptable. With an `AbortController` we can cancel the promisified
 listener after certain delay like so:
 ```js
 // 09_NODES_EVENT_SYSTEM/examples/event-emitter-11.mjs
@@ -633,18 +640,18 @@ passed!
 ### Question 9.1
 What `EventEmitter` method can be used to listen for an event and then immediately remove the
 listener after the event fires?
-A. off
-B. once [x]
-C. when
+- A. off
+- B. once [x]
+- C. when
 
 ### Question 9.2
 Is the emit method synchronous or asynchronous?
-A. Synchronous - event is emitted in current tick [x]
-B. Asynchronous - event is emitted in future tick
-C. Neither/Both, it uses a queue
+- A. Synchronous - event is emitted in current tick [x]
+- B. Asynchronous - event is emitted in future tick
+- C. Neither/Both, it uses a queue
 
 ### Question 9.3
 Which event name, when emitted, has a special behavior?
-A. end
-B. error [x]
-C. exception
+- A. end
+- B. error [x]
+- C. exception

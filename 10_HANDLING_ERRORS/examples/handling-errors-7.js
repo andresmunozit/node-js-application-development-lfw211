@@ -1,5 +1,6 @@
 class OddError extends Error {
     constructor(varName = '') {
+        // We're providing the message argument to the native `Error` constructor
         super(varName + ' must be even')
         this.code = 'ERR_MUST_BE_EVEN'
     }

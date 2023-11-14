@@ -9,7 +9,7 @@ ee.on('my-event', listener2)
 ee.on('another-event', ()  => {console.log('another event')})
 
 setInterval(() => {
-    // Both events are triggered every 300 ms
+    // Both events are triggered every 200 ms
     ee.emit('my-event')
     ee.emit('another-event')
 }, 200);

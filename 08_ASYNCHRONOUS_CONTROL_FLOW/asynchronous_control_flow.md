@@ -79,7 +79,7 @@ This is one way to achieve **parallel execution** in Node.js.
 If we want to use **serial execution** (read the files in order, independent of its size):
 ```js
 // 08_ASYNCHRONOUS_CONTROL_FLOW/examples/callbacks/callbacks-3.js
-const { readFiles } = require('fs')
+const { readFile } = require('fs')
 
 // Array.from() static method creates a new, shallow-copied Array instance from an iterable or
 // array-like object
@@ -1508,7 +1508,7 @@ The `promisify` function is included at the top of `serial.js` in case a promise
 is preferred.
 
 
-### Solution #1
+#### Solution #1
 ```js
 'use strict'
 const { promisify } = require('util')
@@ -1562,7 +1562,7 @@ C
 
 ```
 
-## Solution #2
+#### Solution #2
 ```js
 // 08_ASYNCHRONOUS_CONTROL_FLOW/labs/labs-2/serial-solution-2.js
 'use strict'
@@ -1605,6 +1605,57 @@ run()
 
 ```txt
 $ node serial-solution-2.js
+A
+B
+C
+
+```
+
+#### Solution  #3
+```js
+// 08_ASYNCHRONOUS_CONTROL_FLOW/labs/labs-2/serial-solution-3.js
+'use strict'
+const { promisify } = require('util')
+
+const print = (err, contents) => { 
+  if (err) console.error(err)
+  else console.log(contents) 
+}
+
+const opA = (cb) => {
+  setTimeout(() => {
+    cb(null, 'A')
+  }, 500)
+}
+
+const opB = (cb) => {
+  setTimeout(() => {
+    cb(null, 'B')
+  }, 250)
+}
+
+const opC = (cb) => {
+  setTimeout(() => {
+    cb(null, 'C')
+  }, 125)
+}
+
+// Callback approach (hell!)
+function run() {
+  opA((err, contents) => {
+    print(err, contents)
+    opB((err, contents) => {
+      print(err, contents)
+      opC((err, contents) => print(err, contents))
+    })
+  })
+}
+
+run()
+
+```
+```txt
+$ node serial-solution-3.js
 A
 B
 C

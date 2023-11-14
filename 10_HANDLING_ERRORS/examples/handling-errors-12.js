@@ -31,7 +31,7 @@ try {
     const result = doTask(4)
     result()
     console.log('result', result)
-// Now we can update the catch block to check the code propery instead of using an instance check:
+// Now we can update the catch block to check the code property instead of using an instance check:
 } catch(err) {
     if (err.code === 'ERR_AMOUNT_MUST_BE_NUMBER') {
         console.log('wrong type')

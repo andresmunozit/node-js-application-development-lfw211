@@ -15,7 +15,7 @@ provide a clear error message to guide corrections.
 
 
 ## Throwing
-In a Node.js program, when an error is thrown using the throw statement, the normal flow of the
+In a Node.js program, when an error is thrown using the `throw` statement, the normal flow of the
 program is interrupted, and the runtime starts looking for a `catch` block to handle the error.
 If no `catch` block is found in the current execution stack (call stack), then the program crashes,
 and Node.js prints the error stack trace to the console. If a `catch` block is found, the error is
@@ -295,6 +295,7 @@ cases:
 // 10_HANDLING_ERRORS/examples/handling-errors-7.js
 class OddError extends Error {
     constructor(varName = '') {
+        // We're providing the message argument to the native `Error` constructor
         super(varName + ' must be even')
         this.code = 'ERR_MUST_BE_EVEN'
     }
@@ -545,7 +546,7 @@ try {
     const result = doTask(4)
     result()
     console.log('result', result)
-// Now we can update the catch block to check the code propery instead of using an instance check:
+// Now we can update the catch block to check the code property instead of using an instance check:
 } catch(err) {
     if (err.code === 'ERR_AMOUNT_MUST_BE_NUMBER') {
         console.log('wrong type')

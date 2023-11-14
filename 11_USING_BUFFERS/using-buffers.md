@@ -195,7 +195,7 @@ When the first argument of `Buffer.from` is a string, we can provide a second ar
 encoding. There are two types of encodings in this context, *character encodings* and
 *binary-to-text encodings*
 
-UTF8 and UTF16LE are of type character encoding. When we use different encoding it results in a
+UTF8 and UTF16LE are of type *character encoding*. When we use different encoding it results in a
 buffer with different byte values and/or different buffer sizes:
 ```txt
 $ node -p "Buffer.from('👀')"  
@@ -235,6 +235,8 @@ undefined
 true
 
 ```
+
+Base64 is an example of *bynary-to-text encoding*.
 
 ## Converting Buffers to Strings
 To convert a buffer to string, call the `toString` method on a `Buffer` instance:

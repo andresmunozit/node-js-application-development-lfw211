@@ -330,6 +330,8 @@ in the `write` function. You can prevent this conversion by setting `decodeStrin
 const { Writable } = require('stream')
 const createWriteStream = (data) => {
     return new Writable({
+        // `decodeStrings` is `true` by defaul. If that's the case, strings are transformed to
+        // Buffers when writting data (`chunk` inside of the `write` method will be a string). 
         decodeStrings: false,
         write(chunk, enc, next) {
             data.push(chunk)
@@ -713,7 +715,7 @@ setTimeout(() => {
 
 ```
 
-We're going to create a new version of the client, whhere we will replace the `data` event listener
+We're going to create a new version of the client, where we will replace the `data` event listener
 with a pipe:
 ```js
 // 12_WORKING_WITH_STREAMS/examples/streams-15.js

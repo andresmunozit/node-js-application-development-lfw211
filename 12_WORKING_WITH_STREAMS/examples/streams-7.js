@@ -2,6 +2,7 @@
 const { Writable } = require('stream')
 const createWriteStream = (data) => {
     return new Writable({
+        // `decodeStrings`: if true, decode strings into Buffers when writting the data. 
         decodeStrings: false,
         write(chunk, enc, next) {
             data.push(chunk)

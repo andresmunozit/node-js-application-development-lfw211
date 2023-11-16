@@ -73,17 +73,27 @@ exception which specifically checks if a path is absolute.
 
 ### Path Builders
 Alongside `path.join` the other path *builders* are:
-- **path.relative**: Given two absolute paths, calculates the relative path between them.
-- **path.resolve**: Accepts several path strings and combines them, as if you're navigating from one
-to the next using the cd command. So, `path.resolve('/foo', 'bar', 'baz')` will give you
+- `path.relative(from, to)`: Calculates the relative path between two absolute paths. Receives two
+parameters: `from` (source path) and `to` (destination path).
+- `path.resolve(...paths)`: Accepts several path strings and combines them, as if you're navigating
+from one to the next using the cd command. So, `path.resolve('/foo', 'bar', 'baz')` will give you
 `'/foo/bar/baz'`.
-- **path.normalize**: Simplifies paths by resolving `..` and `.` segments and strips (removes) extra
-slashes. For example, `path.normalize('/foo/../bar//baz')` translates to `'/bar/baz'`.
-- **path.format**: Constructs a path string from an object, matching the structure returned by
-`path.parse`.
+- `path.normalize(stringPath)`: Simplifies paths by resolving `..` and `.` segments and strips
+(removes) extra slashes. For example, `path.normalize('/foo/../bar//baz')` translates to
+`'/bar/baz'`.
+- `path.format(pathObject)`: Constructs a path string from an object, matching the structure
+returned by `path.parse`. Parameter: `pathObject` (object with properties like `dir` and `base`).
+Example: `path.format({ dir: '/foo', base: 'bar' })` returns `'/foo/bar'`.
 
 ### Path Deconstructors
-The path *deconstructors* are `path.parse`, `path.extname`, `path.dirname` and `path.basename`.
+The `path` *deconstructors* are:
+- `path.parse(stringPath)`: Parses a path into an object with properties like `root`, `dir`, `base`,
+`ext`, and `name`.
+- `path.extname(stringPath)`: Extracts the file extension from a path.
+- `path.dirname(stringPath)`: Gets the directory name from a path.
+- `path.basename(stringPath, ext)`: Returns the file name part of a path, optionally removing the
+provided extension.
+
 Let's explore these with a code example:
 ```js
 // 13_INTERACTING_WITH_THE_FILE_SYSTEM/examples/interacting-fs-3.js
@@ -115,9 +125,11 @@ filename extname: .js
 ```
 
 On Windows, the `parse` method's output includes a drive letter in the `root` property, like `C:\`.
-The result has paths with backslashes. `parse` yields an object with `root`, `dir`, `base`, `ext`
-and `name`. While `base`, `dir`, and `ext` can be deduced with `path.dirname` and `path.basename`,
-only `parse` provides `root` and `name`.
+The result has paths with backslashes.
+
+`parse` yields an object with `root`, `dir`, `base`, `ext` and `name`. While `base`, `dir`, and
+`ext` can be deduced with `path.dirname` and `path.basename`, only `parse` provides `root` and
+`name`.
 
 ## Reading and Writing
 The `fs` module offers both low and high-level APIs. Low-level APIs resemble POSIX system calls,
@@ -234,10 +246,11 @@ WRITEFILESYNC(JOIN(__DIRNAME, 'OUT.TXT'), CONTENTS.TOUPPERCASE(), {
 For a full list of supported flags, go to
 [File System Flags](https://nodejs.org/dist/latest-v18.x/docs/api/fs.html#fs_file_system_flags).
 
-If there is a problem with an operation the `*Sync` APIs will throw. So to perform error handling
-they need to be wrapped in a `try/catch block`. In this scenario, the `fs.chmodSync` method was
-employed to deliberately produce an error. When the `fs.writeFileSync` method tried accessing the
-file, it encountered a "permission denied" error.:
+If there is a problem with an operation the `fs` *sync* APIs will throw. So to perform error
+handling they need to be wrapped in a `try/catch block`. In this scenario, the
+`fs.chmodSync(file_name, 0oXXX)` method
+was employed to deliberately produce an error. When the `fs.writeFileSync` method tried accessing
+the file, it encountered a "permission denied" error.:
 ```txt
 $ node -e "fs.chmodSync('out.txt', 0o000)"
 $ node interacting-fs-7.js 
@@ -273,8 +286,8 @@ For `*Sync` APIs in Node, control flow is straightforward due to their sequentia
 Node excels when I/O occurs asynchronously in the background. This leads us to callback and
 promise-based filesystem APIs.
 
-The asynchronous counterpart to `fs.readFileSync` is `fs.readFile`. Let's see an example that
-includes UTF8 encoding and and error handling:
+The asynchronous *callback-based* counterpart to `fs.readFileSync` is `fs.readFile`. Let's see an
+example that includes UTF8 encoding and and error handling:
 ```js
 'use strict'
 const { readFile } = require('fs')

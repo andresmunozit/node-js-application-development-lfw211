@@ -189,7 +189,7 @@ default to `STDERR`.
 
 The `console` methods automatically adds a newline (`\n`) to the input, that's not the case when we
 write directly to `process.stderr` or `process.stdout`. That's why we add `\n` when writing to
-`process.sterr`. in our previous example.
+`process.sterr` in our previous example.
 
 Let's update the example for using `console.error` instead of writing `process.stderr`, and
 demonstrate that indeed `console.error` automaticaly adds a newline at the end of the input string,

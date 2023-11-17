@@ -4,8 +4,8 @@ const { spawn } = require('child_process')
 
 process.env.A_VAR_WE = 'JUST SET'
 
+// We provide an options object as the third argument, which includes an `env` property.
 const sp = spawn(process.execPath, ['-p', 'process.env'], {
-    // We pass an options object with an `env` object
     env: {SUBPROCESS_SPECIFIC: 'ENV VAR'}
 })
 

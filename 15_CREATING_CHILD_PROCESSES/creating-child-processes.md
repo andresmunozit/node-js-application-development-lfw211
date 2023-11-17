@@ -501,7 +501,7 @@ bytes, which can be adjusted with `maxBuffer`), `spawn` streams indefinitely. Th
 suitable for long-running child processes.
 
 > `spawn` continuously streams child process output without buffering, unlike `exec`, `execSync`,
-and `spawnSync` which can halt after 1 mebibyte; making `spawn` preferred for long-running tasks."
+and `spawnSync` which can halt after 1 mebibyte; making `spawn` preferred for long-running tasks.
 
 ## Process Configuration
 An options object can be passed to `exec*` and `spawn*` methods. 
@@ -537,8 +537,8 @@ const { spawn } = require('child_process')
 
 process.env.A_VAR_WE = 'JUST SET'
 
+// We provide an options object as the third argument, which includes an `env` property.
 const sp = spawn(process.execPath, ['-p', 'process.env'], {
-    // We pass an options object with an `env` object
     env: {SUBPROCESS_SPECIFIC: 'ENV VAR'}
 })
 
@@ -625,6 +625,9 @@ sp.stderr.pipe(process.stdout)
 // By setting `stdio[0]` to its default value of `pipe` (corresponding to `STDIN`), `sp.stdin` is
 // made writable from the parent's perspective.
 sp.stdin.write('this input will become output')
+
+// Signaling the end of input is crucial; without it, the child process may hang, waiting for more
+// input that will never arrive.
 sp.stdin.end()
 
 ```

@@ -839,7 +839,7 @@ Ran all test suites.
 
 
 ## Configuring `package.json`
-One final step that is critical, is to confirm that the test script in `package.json` executes the
+One final step that is critical, is to confirm that the `test` script in `package.json` executes the
 correct command. This is a very common mistake, so bear this in mind.
 
 In a fresh `package.json` file, the default `test` script returns an exit code of 1, indicating a
@@ -1287,7 +1287,7 @@ comprehensive
 
 ### Question 16.3
 Why is code coverage important?
-A. It isn't important
-B. Ensuring high test coverage can help tease out bugs by covering as many logic paths as possible,
-this is especially important in a loosely typed language [x]
-C. Bragging rights
+- A. It isn't important
+- B. Ensuring high test coverage can help tease out bugs by covering as many logic paths as
+possible, this is especially important in a loosely typed language [x]
+- C. Bragging rights
